@@ -4,8 +4,8 @@
 **Audience:** Queensland Health IT and information-security staff, and the implementation team
 **Designed by:** Craig MacKenzie — Chemistry Department, Townsville Group Laboratory
 **System:** Combined portable reporting bundle — i-STAT (Point of Care) and ABL (Blood Gas) operator report generators behind a single selection page
-**Form factor:** Self-contained folder on a removable USB drive (bundled Python 3.13 runtime + three loopback-only local web servers). No installation on the host PC; no admin rights required. Runs only on PCs enrolled by the PoC team (§6).
-**Document status:** Prepared September 2026; amended September 2026 — whole-drive encryption (BitLocker To Go) is now **enabled** on the drive; PC enrolment (§6) added 27 September 2026.
+**Form factor:** Self-contained folder on a removable USB drive (bundled Python 3.13 runtime + three loopback-only local web servers). No installation on the host PC; no admin rights required. Runs only on PCs holding a licence issued by the PoC lead (§6).
+**Document status:** Prepared September 2026; amended September 2026 — whole-drive encryption (BitLocker To Go) is now **enabled** on the drive; central PC licensing (§6) added 27 September 2026.
 **Companion:** `PQ_Report_Generator_Security_Briefing.pptx` — slide version of this document for briefings.
 
 ---
@@ -37,7 +37,7 @@ Classified per QGEA as **SENSITIVE (personal information of QH staff)**:
 | Monthly middleware exports | `Monthly reports\` | **Encrypted (BitLocker To Go)** |
 | Generated Word reports | `Reports\iSTAT\<YYYY-MM Month>\`, `Reports\ABL\<YYYY-MM Month>\` | **Encrypted (BitLocker To Go)** |
 | Audit trails | audit / network logs in each app folder | Plaintext by design (accountability), inside the encrypted drive |
-| PC enrolment registry, key and audit | `enrolment.keymeta`, `enrolled_pcs.json`, `enrolment_audit.log` at the drive root | Signed entries; signing key encrypted with the enrolment password; inside the encrypted drive |
+| Licence files, last-seen record, licence audit | `*.lic`, `licence_seen.json`, `licence_audit.log` at the drive root | Licences are signed and verified against the public key in the bundle; all inside the encrypted drive |
 
 ## 3. Network posture — offline by design *and* by enforcement
 
@@ -79,36 +79,39 @@ use is unchanged apart from the password prompt when the drive is inserted. The
 combination — password-gated application AES for the most sensitive records, inside a
 password-unlocked encrypted drive — provides encryption-at-rest defence in depth.
 
-## 6. Where it can run — PC enrolment (implemented)
+## 6. Where it can run — central licensing (implemented)
 
 The bundle is not signed off by QH IT for general use, so it must not be runnable on any PC it
-is copied to. Every launch checks that the PC it is running on has been **enrolled**:
+is copied to, and the number of copies in circulation must be controlled centrally. Every
+launch checks for a **licence file** covering the PC it is running on:
 
+- **Issued centrally, never on the drive.** Licences are created only by the PoC lead's offline
+  keygen (`PQ_Licensing\pq_keygen.py`, kept off the drive and out of the repository), which
+  holds the Ed25519 private key. The bundle carries only the public key, so a licence cannot
+  be forged from the drive. The keygen's ledger (`issued_licences.csv`) is the central register
+  of every copy licensed.
 - **Machine binding.** A machine ID is derived (SHA-256) from the motherboard/system UUID,
-  baseboard serial, system-drive serial and hostname. It is a property of the PC: a copy of the
-  drive on another PC yields a different ID and stays locked.
-- **Enrolment.** On an un-enrolled PC the selection page shows only a lock card with the machine
-  ID. A PoC team member enters the **enrolment password** (chosen at first use; a second team
-  secret, separate from the history password) to enrol that PC. Both report engines answer
-  every request with a lock page until then — there is no route around the portal.
-- **Term.** An enrolment lasts 12 months and records the bundle version, so the team knows
-  which PCs run which build and can bring them back for updates. A renewal notice appears in
-  the last 30 days; an expired PC is locked until re-enrolled.
-- **Registry integrity.** Each enrolment is an Ed25519-signed entry in `enrolled_pcs.json`,
-  verified at every launch against the public key in `enrolment.keymeta`. The private signing
-  key is stored only encrypted with the enrolment password (PBKDF2-HMAC-SHA256, 600,000
-  rounds, random salt). An edited entry, or an entry copied from another drive, fails
-  verification and stops counting.
-- **Non-networked PCs.** The tool is intended for PCs without a network connection. If a live
-  network adapter or non-loopback address is detected at enrolment, the page says so and
-  requires an explicit confirmation; the fact is recorded with the enrolment.
-- **Accountability.** `enrolment_audit.log` at the drive root records every launch (PC,
-  Windows user, bundle version, network state), enrolment, renewal, revocation and failed
-  password. The **Enrolled PCs** page (selection page footer) lists every PC with its version,
-  expiry and last use, and lets the team revoke one.
-- **Stated limit.** The check, the public key and the registry live on the drive. Someone who
-  holds the BitLocker password and can edit Python could remove the check. It is an
-  administrative control with an audit trail, not tamper-proof DRM.
+  baseboard serial, system-drive serial and hostname. A licence names the machine IDs it covers
+  (with a seat cap); a copy of the drive on another PC yields a different ID and stays locked.
+- **Term = QIS review cycle.** A licence lasts 12 months. A renewal notice appears in the last
+  30 days, a 30-day grace period follows, then the PC is locked until the renewed licence is
+  installed.
+- **Version gate.** Each licence names the newest bundle version it covers. Updating the bundle
+  at a review therefore requires re-issuing licences — a controlled roll-out, and a check that
+  every copy in use is a reviewed one.
+- **Integrity.** A licence is a signed JSON document (site, machines, seat cap, issued/expires,
+  max version). Any edit breaks the signature and the file is refused and logged. A system
+  clock earlier than the last recorded run also locks the tool until corrected.
+- **Enforcement.** The selection page shows only a lock card (with the machine ID and an
+  **Install licence file** control) until a covering licence is present; both report engines
+  answer every request with a lock page until then — there is no route around the portal.
+- **Accountability.** `licence_audit.log` at the drive root records every launch (PC, Windows
+  user, bundle version, network state), licence install, refusal and invalid file. The
+  **Licences** page (selection page footer) shows every licence on the drive and the PCs it
+  covers, with last use.
+- **Stated limit.** The check and the public key live on the drive. Someone who holds the
+  BitLocker password and can edit Python could remove the check. It is an administrative
+  control with an audit trail and a central register, not tamper-proof DRM.
 
 ## 7. Application hardening (both engines)
 
@@ -136,8 +139,9 @@ decision. The controls map to the obligations QH commonly applies:
 | **QH SOE endpoint controls** | No installation, no admin rights, no services, no firewall exceptions, no system changes — host controls untouched. |
 
 **Known limitations (stated for transparency):** locally managed tool, not centrally
-patched; the history, enrolment and BitLocker passwords are shared secrets within the PoC
-team; PC enrolment is enforced by code on the drive (a control with an audit trail, not DRM); audit logs are plaintext by design (inside the encrypted drive); ABL histories rely on
+patched; the history password and the BitLocker password are shared secrets within the PoC
+team; the licence signing key is held by the PoC lead alone (its loss means re-issuing every
+licence, never a bypass); licence enforcement is code on the drive (evidence, not DRM); audit logs are plaintext by design (inside the encrypted drive); ABL histories rely on
 BitLocker rather than app-level encryption; and some managed SOE devices may block
 executables on removable media (AppLocker) — which blocks the tool entirely rather than
 degrading its security.
@@ -145,7 +149,7 @@ degrading its security.
 ## 9. Verifying these claims
 
 1. **Code is inspectable:** `iSTAT_App\app.py`, `ABL_App\app.py`, `portal\portal.py`,
-   `pq_enrolment.py` and both `netguard.py` files are plain Python source. The `python\` folder is the unmodified
+   `pq_licence.py` and both `netguard.py` files are plain Python source. The `python\` folder is the unmodified
    python.org embeddable distribution plus PyPI wheels.
 2. **Offline test:** air-gap a machine, run end-to-end, review the network audit logs.
 3. **Drive encryption test:** insert the drive on any machine — Windows demands the
@@ -155,9 +159,9 @@ degrading its security.
    nothing recoverable without the application password.
 5. **Audit trail:** review each engine's `audit.log` for generation and unlock records tied
    to Windows usernames.
-6. **Enrolment test:** launch the bundle on a PC that has not been enrolled — the portal and
-   both engines show only the lock page. Edit any value in `enrolled_pcs.json` — that entry
-   stops counting and the attempt is written to `enrolment_audit.log`.
+6. **Licence test:** launch the bundle on a PC with no licence — the portal and both engines
+   show only the lock page. Edit any value in a `.lic` file — it is refused and the refusal
+   is written to `licence_audit.log`.
 
 *Questions or review requests: contact Craig MacKenzie (Chemistry Department, Townsville
 Group Laboratory) or the Pathology Queensland Point of Care team.*

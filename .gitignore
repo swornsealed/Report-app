@@ -9,6 +9,7 @@
 !/PQ_Portable/
 !/PQ_Report_Generator_User_Guide.pptx
 !/PQ_Report_Generator_Security_Briefing.pptx
+!/PQ_Licensing/
 
 # Inside the app folders: keep code, templates, docs; drop data and backups
 __pycache__/
@@ -21,12 +22,14 @@ history.keymeta
 iSTAT_App/PrintAndPlanCreation_*
 ABL_App/picu_operator_list.xlsx
 
-# PC enrolment state is per drive, never source
-enrolment.keymeta
-enrolled_pcs.json
-enrolled_pcs.json.tmp
-enrolment_seen.json
-enrolment_seen.json.tmp
+# Licensing: the private key and issued licences never go in the repo;
+# per-drive licence state is not source either
+PQ_Licensing/private_key.hex
+PQ_Licensing/issued/
+PQ_Licensing/issued_licences.csv
+*.lic
+licence_seen.json
+licence_seen.json.tmp
 
 # Portable bundle: only the portal, launcher and docs are source.
 # The app copies are deployed from iSTAT_App / ABL_App; python/ is the runtime.

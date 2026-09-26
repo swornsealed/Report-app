@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Licences — PQ Operator Report Generator</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#F2F2F7;color:#17272E;padding:36px 28px}
+  h1{color:#01485C;font-size:24px;margin-bottom:4px} .sub{color:#5F7178;font-size:13px;margin-bottom:22px;line-height:1.6}
+  a{color:#01485C} .card{background:#fff;border-radius:16px;box-shadow:0 10px 34px rgba(1,38,50,.12);padding:22px;margin-bottom:18px}
+  h2{color:#01485C;font-size:17px;margin-bottom:6px} .meta{font-size:13px;color:#5F7178;margin-bottom:12px;line-height:1.6}
+  table{border-collapse:collapse;width:100%;font-size:13px} th,td{padding:8px 10px;text-align:left;border-bottom:1px solid #E2E8EA;vertical-align:top}
+  th{background:#01485C;color:#fff;font-weight:600;white-space:nowrap} tr.me td{background:#E5F2F0}
+  .st{font-weight:700;padding:2px 8px;border-radius:99px;font-size:12px;white-space:nowrap}
+  .LICENSED{background:#E3F2E1;color:#2E7D32}.EXPIRING{background:#FDF0E4;color:#B4540A}.GRACE,.EXPIRED,.INVALID{background:#FDE8E6;color:#B3261E}
+  code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px} .bad{color:#B3261E;font-weight:600}
+  .foot{margin-top:6px;font-size:12px;color:#5F7178;line-height:1.5}
+</style></head><body>
+<h1>Licences on this drive</h1>
+<div class="sub">Bundle version {{ version }} · this PC is <code>{{ me }}</code> ({{ status.hostname }}) · status: <b>{{ status.state }}</b> — {{ status.message }}<br>
+<a href="/">back to the selection page</a></div>
+{% for l in licences %}
+<div class="card">
+  {% if l.valid %}
+  <h2>{{ l.site }} <span class="st {{ l.state }}">{{ l.state }}</span>{% if not l.version_ok %} <span class="bad">does not cover bundle {{ version }}</span>{% endif %}</h2>
+  <div class="meta"><code>{{ l.licence_id }}</code> · file <code>{{ l.file }}</code> · issued {{ l.issued }} · expires {{ l.expires }}{% if l.days_left >= 0 %} ({{ l.days_left }} days){% endif %}
+    · covers bundle versions up to {{ l.max_version }} · {{ l.machines|length }} of {{ l.seats }} seats{% if l.note %} · {{ l.note }}{% endif %}</div>
+  <table>
+  <tr><th>Machine ID</th><th>Label</th><th>Last seen on this drive</th><th>User</th><th>Version run</th></tr>
+  {% for m in l.machines %}
+  <tr class="{{ 'me' if m.id == me else '' }}"><td><code>{{ m.id }}</code>{% if m.id == me %} (this PC){% endif %}</td><td>{{ m.label }}</td>
+    <td>{{ m.last_seen.last_seen if m.last_seen else '—' }}{% if m.last_seen %} · {{ m.last_seen.hostname }}{% endif %}</td>
+    <td>{{ m.last_seen.user if m.last_seen else '' }}</td><td>{{ m.last_seen.version if m.last_seen else '' }}</td></tr>
+  {% endfor %}
+  </table>
+  {% else %}
+  <h2>{{ l.file }} <span class="st INVALID">INVALID</span></h2>
+  <div class="meta bad">{{ l.error }}</div>
+  {% endif %}
+</div>
+{% else %}
+<div class="card"><div class="meta">No licence files on this drive.</div></div>
+{% endfor %}
+<div class="foot">Licences are issued by the PoC lead's offline keygen and verified against the public key in the bundle at every launch; an edited file is refused.
+Every launch, install and refusal is written to <code>licence_audit.log</code> at the drive root.</div>
+</body></html>

@@ -34,49 +34,50 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 APP_COMPONENT = 'abl'
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  PC ENROLMENT — the bundle runs only on PCs enrolled via the portal (:5750).
-#  pq_enrolment.py lives at the bundle root; without it, or without a valid
-#  enrolment for this machine, every request is answered with a lock page.
+#  LICENCE GATE — the bundle runs only under a licence file issued by the PoC
+#  lead's offline keygen (pq_licence.py at the bundle root holds the public
+#  key). Without the module, or without a valid licence covering this machine,
+#  every request is answered with a lock page.
 # ═══════════════════════════════════════════════════════════════════════════════
-def _load_enrolment():
+def _load_licence():
     import importlib.util
     _here = os.path.dirname(os.path.abspath(__file__))
     for cand in (os.path.join(_here, '..'), os.path.join(_here, '..', 'PQ_Portable')):
-        path = os.path.join(cand, 'pq_enrolment.py')
+        path = os.path.join(cand, 'pq_licence.py')
         if os.path.exists(path):
             try:
-                spec = importlib.util.spec_from_file_location('pq_enrolment', path)
+                spec = importlib.util.spec_from_file_location('pq_licence', path)
                 mod  = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(mod)
                 return mod
             except Exception as exc:
-                print(f'[ENROL] failed to load {path}: {exc}')
+                print(f'[LICENCE] failed to load {path}: {exc}')
                 return None
     return None
 
-_ENROL = _load_enrolment()
-if _ENROL is not None:
+_LIC = _load_licence()
+if _LIC is not None:
     try:
-        _ENROL.record_launch(APP_COMPONENT)
+        _LIC.record_launch(APP_COMPONENT)
     except Exception:
         pass
 
-_LOCK_PAGE = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>PC not enrolled</title>
+_LOCK_PAGE = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>PC not licensed</title>
 <style>body{font-family:-apple-system,Segoe UI,Arial,sans-serif;background:#F2F2F7;color:#17272E;display:flex;
 align-items:center;justify-content:center;height:100vh;margin:0}.card{background:#fff;border-radius:16px;
 padding:36px 40px;max-width:560px;box-shadow:0 10px 34px rgba(1,38,50,.25)}h1{color:#01485C;font-size:22px;margin:0 0 12px}
 p{line-height:1.5;margin:8px 0}code{background:#E5F2F0;padding:2px 6px;border-radius:6px}a{color:#01485C}</style></head>
-<body><div class="card"><h1>This PC is not enrolled</h1><p>{msg}</p>
+<body><div class="card"><h1>This PC is not licensed</h1><p>{msg}</p>
 <p>Machine ID <code>{mid}</code> &middot; {host}</p>
-<p>Open the selection page at <a href="http://localhost:5750/">localhost:5750</a> and enrol this PC with the
-PoC team&rsquo;s enrolment password. Nothing can be generated until then.</p></div></body></html>"""
+<p>Open the selection page at <a href="http://localhost:5750/">localhost:5750</a> for the licence status and to
+install a licence file from the PoC lead. Nothing can be generated until then.</p></div></body></html>"""
 
 @app.before_request
-def _enforce_enrolment():
-    if _ENROL is None:
-        return ('<h2 style="font-family:sans-serif;color:#B4540A">Enrolment module missing &mdash; '
+def _enforce_licence():
+    if _LIC is None:
+        return ('<h2 style="font-family:sans-serif;color:#B4540A">Licence module missing &mdash; '
                 'this copy of the bundle is incomplete and cannot run.</h2>'), 403
-    st = _ENROL.status()
+    st = _LIC.status()
     if not st['allowed']:
         body = (_LOCK_PAGE.replace('{msg}', st['message']).replace('{mid}', st['machine_id'])
                 .replace('{host}', st['hostname']))

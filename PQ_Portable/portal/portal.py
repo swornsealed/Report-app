@@ -16,11 +16,12 @@ ROOT    = os.path.dirname(APP_DIR)
 PYTHON  = os.path.join(ROOT, 'python', 'python.exe')
 PORT    = 5750
 
-# PC enrolment (bundle root). The portal is where a PC is enrolled or renewed;
-# both engines check the same registry and lock themselves otherwise.
+# Licence check (bundle root). The portal shows the licence status, installs a
+# licence file from the PoC lead and lists the licences on the drive; both
+# engines check the same files and lock themselves otherwise.
 sys.path.insert(0, ROOT)
-import pq_enrolment as enrol
-enrol.record_launch('portal')
+import pq_licence as lic
+lic.record_launch('portal')
 
 def _same_origin(req):
     src = req.headers.get('Origin') or req.headers.get('Referer') or ''
@@ -64,44 +65,31 @@ def engines():
     return jsonify([{'key': e['key'], 'name': e['name'], 'port': e['port']}
                     for e in ENGINES])
 
-@app.route('/enrol_status')
-def enrol_status():
-    return jsonify(enrol.status())
+@app.route('/licence_status')
+def licence_status():
+    return jsonify(lic.status())
 
-@app.route('/enrol', methods=['POST'])
-def do_enrol():
+@app.route('/licence_install', methods=['POST'])
+def licence_install():
     if not _same_origin(request):
         abort(403)
-    data = request.get_json(silent=True) or {}
-    pw   = str(data.get('password') or '')
+    f = request.files.get('file')
+    if f is None:
+        return jsonify({'error': 'Choose the .lic file you received from the PoC lead.'}), 400
+    raw = f.read(65536)
     try:
-        if not enrol.is_initialised():
-            if pw != str(data.get('password2') or ''):
-                return jsonify({'error': 'The two passwords do not match.'}), 400
-            enrol.setup(pw)
-        entry = enrol.enrol(pw, note=data.get('note', ''),
-                            confirm_network=bool(data.get('confirm_network')))
+        pl = lic.install_licence(raw, f.filename or 'licence.lic')
     except ValueError as exc:
-        if str(exc) == 'NETWORK_CONFIRM':
-            return jsonify({'error': 'network_confirm', 'network': enrol.network_state()}), 409
+        lic._audit('licence_install_refused', reason=str(exc))
         return jsonify({'error': str(exc)}), 400
-    return jsonify({'ok': True, 'expires_at': entry['expires_at']})
+    st = lic.status()
+    return jsonify({'ok': True, 'site': pl['site'], 'expires': pl['expires'],
+                    'covers_this_pc': st['allowed'], 'message': st['message']})
 
-@app.route('/enrolled')
-def enrolled():
-    return render_template('enrolled.html', entries=enrol.entries(), me=enrol.machine_id(),
-                           version=enrol.version(), term=enrol.TERM_MONTHS)
-
-@app.route('/revoke', methods=['POST'])
-def do_revoke():
-    if not _same_origin(request):
-        abort(403)
-    data = request.get_json(silent=True) or {}
-    try:
-        n = enrol.revoke(str(data.get('machine_id') or ''), str(data.get('password') or ''))
-    except ValueError as exc:
-        return jsonify({'error': str(exc)}), 400
-    return jsonify({'ok': True, 'removed': n})
+@app.route('/licences')
+def licences_page():
+    return render_template('licences.html', licences=lic.licences(), me=lic.machine_id(),
+                           version=lic.version(), status=lic.status())
 
 if __name__ == '__main__':
     print('\n  Pathology Queensland — Operator Report Generator')

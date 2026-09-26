@@ -13,9 +13,10 @@ TO USE
   2. Double-click "Start PQ Reports.bat".
   3. Your browser opens the selection page (http://localhost:5750).
      NEW PC? The page shows a lock card with this PC's machine ID.
-     A PoC team member enters the enrolment password to enrol it
-     (first ever use: choose the password). Enrolment is tied to
-     that PC's motherboard and lasts 12 months.
+     Send the ID to the PoC lead, who issues a licence file (.lic)
+     for that PC; install it from the page or copy it to the drive
+     root. Licences are bound to the PC and expire every 12 months
+     with the QIS review.
   4. Choose the report type from the drop-down and click Open.
   5. i-STAT asks for the history password before it will run.
   6. When finished, close the black console window (stops everything),
@@ -28,9 +29,9 @@ WHERE THINGS GO
   Histories ........... inside iSTAT_App\ (ENCRYPTED - password needed)
                         and ABL_App\ (covered by BitLocker To Go)
   Audit logs .......... audit/network logs inside each app folder;
-                        enrolment_audit.log at the drive root
-  Enrolled PCs ........ enrolled_pcs.json + enrolment.keymeta at the
-                        drive root (see 'Enrolled PCs' on the page)
+                        licence_audit.log at the drive root
+  Licences ............ *.lic files at the drive root (see the
+                        'Licences' link on the selection page)
 
 FOLDER LAYOUT (keep together)
   Start PQ Reports.bat   the launcher - double-click this
@@ -38,8 +39,9 @@ FOLDER LAYOUT (keep together)
   iSTAT_App\             i-STAT report engine
   ABL_App\               ABL report engine
   python\                private Python + packages (do not modify)
-  pq_enrolment.py        PC enrolment check (used by all three)
-  VERSION                bundle version, recorded with each enrolment
+  pq_licence.py          licence check (used by all three)
+  VERSION                bundle version (licences name the newest
+                         version they cover)
 
 SECURITY
   - See SECURITY_README.md for the full security overview
@@ -47,8 +49,9 @@ SECURITY
   - i-STAT history files are encrypted; the password is set by the
     PoC team and is NOT recoverable if forgotten.
   - The whole drive is protected with BitLocker To Go.
-  - The bundle runs only on enrolled PCs (not signed off by QH IT
-    for general use). Enrol only approved, non-networked PCs.
+  - The bundle runs only on PCs licensed by the PoC lead (it is
+    not signed off by QH IT for general use). Licences cannot be
+    made on the drive.
 
 NOTES
   - The FIRST launch on a new computer can take up to 30 seconds.
