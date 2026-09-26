@@ -1,0 +1,499 @@
+{
+  "entries": [
+    {
+      "codes": [],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "General cartridge error \u2014 check sample, filling technique, and pin contact",
+      "explanation": "A general cartridge error occurred. Common causes include: incorrect sample volume (over/underfilled), air bubbles in sample, cartridge not equilibrated to room temperature, poor contact between analyzer pins and cartridge (try ceramic conditioning cartridge), or a defective cartridge. Use another cartridge and review operator technique."
+    },
+    {
+      "codes": [
+        "1"
+      ],
+      "display": "Dead Batteries / Replace Batteries",
+      "short": "Insufficient battery power",
+      "explanation": "Insufficient battery power to complete the testing cycle. Replace the disposable lithium batteries or recharge the rechargeable batteries. Consider upgrading to rechargeable batteries if this occurs frequently."
+    },
+    {
+      "codes": [
+        "2"
+      ],
+      "display": "Temperature Out of Range / Check Status Page",
+      "short": "Analyzer temperature outside operating range",
+      "explanation": "The analyzer temperature is outside its operating range. Move the analyzer to an area within the correct operating temperature and allow it to acclimatise. Check the temperature reading on the Status Page."
+    },
+    {
+      "codes": [
+        "4",
+        "8"
+      ],
+      "display": "Analyzer Interrupted / Use Another Cartridge",
+      "short": "Last test cycle not completed",
+      "explanation": "The last test cycle was not completed, usually because batteries were removed or lost contact while a cartridge was inserted. Check batteries are correctly seated; verify voltage on Status Page and replace if low. Patient results displayed before this code are valid."
+    },
+    {
+      "codes": [
+        "11"
+      ],
+      "display": "Date Invalid / Check Clock on Status Page",
+      "short": "Real-time clock date incorrect",
+      "explanation": "The date in the real-time clock precedes the software release date, or is inaccurate for a coagulation test. Check and correct the date on the real-time clock via the Status Page."
+    },
+    {
+      "codes": [
+        "12"
+      ],
+      "display": "Expired Software Update Required / See Manual",
+      "short": "Standardisation software (CLEW) has expired",
+      "explanation": "The CLEW standardisation software has expired or the real-time clock date exceeds the CLEW expiration date. Download a valid CLEW to the analyzer. Check the real-time clock date and adjust if necessary."
+    },
+    {
+      "codes": [
+        "13"
+      ],
+      "display": "Invalid CLEW Update Required / See Manual",
+      "short": "CLEW is corrupt, incompatible, or missing",
+      "explanation": "The CLEW is corrupt, not compatible with the application software (JAMS), or absent. Download a valid CLEW. After a software upgrade, ensure the CLEW version in the Customisation Profile is updated and re-transmitted."
+    },
+    {
+      "codes": [
+        "14"
+      ],
+      "display": "Analyzer Error / See Manual",
+      "short": "Customisation profile corrupted",
+      "explanation": "The customisation profile is corrupted. Download the analyzer to the data manager. If code 14 reoccurs, contact i-STAT Technical Services for further assistance."
+    },
+    {
+      "codes": [
+        "15"
+      ],
+      "display": "Barcode Does Not Match Cartridge Type",
+      "short": "Barcode scanned does not match inserted cartridge",
+      "explanation": "The cartridge identified via barcode does not match the inserted cartridge. Run another cartridge and carefully scan the barcode from the specific cartridge type being run."
+    },
+    {
+      "codes": [
+        "17",
+        "18",
+        "19"
+      ],
+      "display": "No Clot Detected / See Manual",
+      "short": "No clot detected during coagulation test",
+      "explanation": "During the coagulation test cycle, no clot was detected. Run another cartridge. If the code reappears, run the sample using an alternate methodology."
+    },
+    {
+      "codes": [
+        "21"
+      ],
+      "display": "Cartridge Preburst / Use Another Cartridge",
+      "short": "Fluid detected on sensors prematurely",
+      "explanation": "Fluid was detected on sensors before expected. Possible causes: mishandling of cartridges (pressure on centre), poor storage (frozen cartridges), or re-use of a spent cartridge. Use a new cartridge stored correctly."
+    },
+    {
+      "codes": [
+        "22",
+        "25"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Sample/reagent mixing compromised (coagulation)",
+      "explanation": "Mixing of sample and reagent was compromised in a coagulation cartridge. Likely caused by insufficient or clotted sample, or air bubbles. Use a fresh cartridge and ensure adequate sample volume."
+    },
+    {
+      "codes": [
+        "23",
+        "49"
+      ],
+      "display": "Poor Contact Detected / See Manual",
+      "short": "Poor contact between analyzer pins and cartridge",
+      "explanation": "Poor contact between analyzer contact pins and cartridge sensor (code 23) or ID chip (code 49) contact pads. Run the ceramic conditioning cartridge (CCC) to clean and condition the pins. Contact Technical Services if the problem persists."
+    },
+    {
+      "codes": [
+        "24"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Calibrant fluid resistance out of specification",
+      "explanation": "The electrical resistance of the calibrant fluid (Rcal) is out of specification. May indicate a pre-burst calibrant pack or a lot-change effect. If code 24 persists beyond 3 cartridge runs per analyzer, contact i-STAT Technical Services."
+    },
+    {
+      "codes": [
+        "26"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Coagulation-specific quality check failure",
+      "explanation": "A coagulation-specific quality check failed: premature substrate activation, abnormally low substrate levels, or invalid fluid motion. Use another cartridge."
+    },
+    {
+      "codes": [
+        "20",
+        "27",
+        "28",
+        "29",
+        "32",
+        "33",
+        "40",
+        "41",
+        "45",
+        "87"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Calibrant fluid timing/signal issue; possible poor contact",
+      "explanation": "Problems with calibrant fluid timing (arriving too soon, too late, or not at all) or signal noise. Codes 20, 27, 41, 87 can result from poor pin contact \u2014 run the ceramic conditioning cartridge. Code 45 is elevated when cartridges are not equilibrated to room temperature before use."
+    },
+    {
+      "codes": [
+        "30",
+        "37"
+      ],
+      "display": "Sample Positioned Beyond Fill Mark / Use Another Cartridge",
+      "short": "Cartridge overfilled",
+      "explanation": "The cartridge was overfilled \u2014 the sample passed the fill mark. Use another cartridge and fill only to the fill mark."
+    },
+    {
+      "codes": [
+        "31",
+        "34",
+        "44",
+        "46"
+      ],
+      "display": "Unable to Position Sample / Use Another Cartridge",
+      "short": "Sample movement not detected",
+      "explanation": "The analyzer did not detect sample movement across the sensors. Likely causes: clot in sample (especially neonates), snap closure not fully closed, or an aberrant cartridge. Ensure the closure is firmly snapped before insertion."
+    },
+    {
+      "codes": [
+        "35",
+        "36"
+      ],
+      "display": "Sample Positioned Short of Fill Mark / Use Another Cartridge",
+      "short": "Cartridge underfilled",
+      "explanation": "The cartridge was underfilled \u2014 the sample did not reach the fill mark. Use another cartridge and ensure the sample reaches the fill mark before closing."
+    },
+    {
+      "codes": [
+        "38",
+        "39"
+      ],
+      "display": "Insufficient Sample / Use Another Cartridge",
+      "short": "Insufficient sample volume or bubbles in sample well",
+      "explanation": "Insufficient sample in the sample well, or bubbles in the sample. Use another cartridge, ensure adequate sample volume, and check for air bubbles in the delivery device."
+    },
+    {
+      "codes": [
+        "42"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Conductometric sensor out of specification",
+      "explanation": "The conductometric sensor was out of specification. Could be a pre-burst calibrant pack, dirty cartridge contact pads, or a dirty connector in the analyzer. Check and clean the cartridge contact area."
+    },
+    {
+      "codes": [
+        "43"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Amperometric sensor out of specification",
+      "explanation": "The amperometric sensor was out of specification. Could be a pre-burst calibrant pack, dirty cartridge contact pads, or dirty analyzer connector. Check and clean the contact area."
+    },
+    {
+      "codes": [
+        "47"
+      ],
+      "display": "Cartridge Not Inserted Properly / Reinsert Cartridge",
+      "short": "Cartridge not fully inserted",
+      "explanation": "The cartridge or Electronic Simulator may not be pushed in all the way. Reinsert until firmly seated. If the problem persists after confirmed proper insertion, the analyzer may require servicing."
+    },
+    {
+      "codes": [
+        "48"
+      ],
+      "display": "Analyzer Error / See Manual",
+      "short": "Cartridge inserted at an angle",
+      "explanation": "The cartridge or Simulator may have been 'cocked' (inserted at an angle) when inserted. Always push the cartridge or Simulator straight through the cartridge port. If the problem persists, contact Technical Services."
+    },
+    {
+      "codes": [
+        "50"
+      ],
+      "display": "Analyzer Error / Use Electronic Simulator",
+      "short": "Motor moved too far; possible poor electrical connection",
+      "explanation": "The motor has moved too far. Run the Electronic Simulator; if it passes, run a cartridge. If the code recurs, contact Technical Services. For immunoassay cartridges, this may be caused by poor electrical connection \u2014 try the ceramic conditioning cartridge."
+    },
+    {
+      "codes": [
+        "51"
+      ],
+      "display": "Analyzer Error / Use Electronic Simulator",
+      "short": "Motor ran too long",
+      "explanation": "The motor ran for too long. Run the Electronic Simulator. If ACT cartridge was being run, also run a cartridge. Check batteries \u2014 low battery can trigger this code. If the code persists, contact Technical Services."
+    },
+    {
+      "codes": [
+        "52"
+      ],
+      "display": "Analyzer Error / Use Electronic Simulator",
+      "short": "Motor stalled during movement",
+      "explanation": "The motor stalled while moving. Run the Electronic Simulator. If the error occurred during an ACT cartridge run, also run a cartridge. If the code reoccurs, contact Technical Services."
+    },
+    {
+      "codes": [
+        "53",
+        "55",
+        "56",
+        "57",
+        "63",
+        "65",
+        "66",
+        "67",
+        "68",
+        "72",
+        "73",
+        "74",
+        "82",
+        "83",
+        "84",
+        "85",
+        "86",
+        "89",
+        "90",
+        "91",
+        "92",
+        "93",
+        "94",
+        "96",
+        "97"
+      ],
+      "display": "Analyzer Error / See Manual",
+      "short": "Mechanical or electronic failure",
+      "explanation": "Mechanical or electronic failures from which the analyzer may not recover. Code 56: electronic interference \u2014 move analyzer away from interference sources. Code 86: overheating in downloader \u2014 ensure adequate ventilation. Codes 82/92: pressure transducer problem. Run simulator twice then a cartridge; if issues persist, contact Technical Services."
+    },
+    {
+      "codes": [
+        "58",
+        "59",
+        "60",
+        "61",
+        "62"
+      ],
+      "display": "Analyzer Error / Use Electronic Simulator",
+      "short": "Electronic error; analyzer usually recovers",
+      "explanation": "The analyzer usually recovers from these error conditions. They can be detected by the Electronic Simulator. If the analyzer passes the simulator test, continue use. If not, check battery voltage and test with another simulator. If the code persists, contact Technical Services."
+    },
+    {
+      "codes": [
+        "69"
+      ],
+      "display": "Cartridge Type Not Recognized / Use Another Cartridge",
+      "short": "Analyzer could not identify cartridge or simulator",
+      "explanation": "The cartridge or simulator could not be identified. Possible causes: wrong item inserted (cartridge instead of simulator or vice versa), or unrecognised cartridge type. Insert the correct item. If the issue persists, the analyzer may require repair."
+    },
+    {
+      "codes": [
+        "79",
+        "80",
+        "81"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Poor contact between thermal probes and cartridge chips",
+      "explanation": "Poor contact between the thermal probes in the analyzer and the metalisation on the back of the cartridge chips. Causes: poor chip metalisation, dirt on metalisation, or bent/broken thermal probes. Contact Technical Services if persistent."
+    },
+    {
+      "codes": [
+        "95"
+      ],
+      "display": "Test Cancelled by Operator",
+      "short": "Operator cancelled before mandatory data entered",
+      "explanation": "The analyzer powered down before mandatory information (e.g., operator ID) was entered. This message appears in stored records. Ensure all required information is entered before the analyzer powers off."
+    },
+    {
+      "codes": [
+        "120",
+        "121",
+        "122",
+        "124",
+        "125",
+        "133",
+        "144",
+        "148"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Analysis fluid movement problem (immunoassay)",
+      "explanation": "Problem with the movement of analysis fluid during an immunoassay cartridge run. Try another cartridge. If the problem persists on the same analyzer, there may be an analyzer fault."
+    },
+    {
+      "codes": [
+        "123"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Immuno reagent quality control failed",
+      "explanation": "The quality control failed to verify the presence of active immuno reagents in the cartridge. Try another cartridge. If the problem persists, check cartridge storage conditions and expiry."
+    },
+    {
+      "codes": [
+        "126"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Analysis fluid integrity check failed; possible poor connection",
+      "explanation": "Quality control failed to verify analysis fluid integrity. May also be caused by poor electrical connection between the analyzer and cartridge \u2014 try the ceramic conditioning cartridge. If codes 50, 126, and 128 occur together frequently, return the analyzer for replacement."
+    },
+    {
+      "codes": [
+        "127"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Wet sensor before sample movement (overfilled/used cartridge)",
+      "explanation": "A wet sensor was detected before initial sample movement. Possible overfilled or previously used cartridge. Try another cartridge and follow correct filling procedures."
+    },
+    {
+      "codes": [
+        "128",
+        "131",
+        "132",
+        "134",
+        "135",
+        "136",
+        "137",
+        "138"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Poor filling, sample bubbles, or abrupt cartridge insertion",
+      "explanation": "Most often related to poor filling, sample bubbles, or abrupt insertion of an immunoassay cartridge. Always discard 1 drop first, hang a single slightly-large drop over the target well, and guide the cartridge gently until a soft click is heard."
+    },
+    {
+      "codes": [
+        "129",
+        "142",
+        "143"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Analysis fluid mixed with sample detected",
+      "explanation": "The analyzer detected analysis fluid mixed with the sample. Try another cartridge. Ensure correct cartridge handling and storage."
+    },
+    {
+      "codes": [
+        "130"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Air bubble detected in sample segment",
+      "explanation": "An air bubble was detected in the sample segment. Try another cartridge and ensure the sample delivery device is free of bubbles before filling the cartridge."
+    },
+    {
+      "codes": [
+        "145"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Failed to detect fluid arrival on initial sample push",
+      "explanation": "Failed to detect fluid arrival. Possible causes: cartridge leak, closure not fully engaged, or underfilled cartridge. For immunoassay cartridges, touch one drop to the target well and allow it to wick \u2014 do not force extra sample."
+    },
+    {
+      "codes": [
+        "146"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Overfilled immunoassay cartridge",
+      "explanation": "The immunoassay cartridge was overfilled. Repeat the test using correct filling technique: touch a single drop to the round target well and wait for the sample to reach the fill mark before closing."
+    },
+    {
+      "codes": [
+        "147"
+      ],
+      "display": "Analyzer Error / See Manual",
+      "short": "Analyzer not compatible with immunoassay cartridge",
+      "explanation": "The i-STAT 1 Analyzer must be specifically enabled to run immunoassay cartridges. The analyzer does not bear the required symbol for immunoassay cartridge use. Contact Technical Services."
+    },
+    {
+      "codes": [
+        "149",
+        "150",
+        "151"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Atypical data stream from cartridge",
+      "explanation": "The analyzer detected an atypical data stream from the cartridge. Try another cartridge. For BNP with code 150 on a whole blood sample, centrifuge the sample and repeat the test with the resulting plasma."
+    },
+    {
+      "codes": [
+        "165"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Fluid on sensors before expected (coagulation)",
+      "explanation": "Fluid was detected on sensors before expected during a coagulation cartridge run. Possible causes: re-use of a spent cartridge, or cartridge not equilibrated to room temperature. Allow individual cartridges 5 minutes or a full box 1 hour to equilibrate at room temperature."
+    },
+    {
+      "codes": [
+        "166"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Sample arrived too late at sensors (coagulation)",
+      "explanation": "The sample arrived at the sensors too late, indicating the cartridge may be underfilled or there is a bubble in the sample. Try another cartridge and ensure adequate sample volume."
+    },
+    {
+      "codes": [
+        "167"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Sample arrived too early at sensors (coagulation)",
+      "explanation": "The sample arrived at the sensors too early, indicating the cartridge may be overfilled. Try another cartridge."
+    },
+    {
+      "codes": [
+        "170"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Resistance value too high (coagulation)",
+      "explanation": "A resistance value detected during the coagulation test cycle was too high. Try another cartridge. If the problem persists, contact Technical Services."
+    },
+    {
+      "codes": [
+        "171",
+        "172",
+        "173",
+        "174",
+        "175"
+      ],
+      "display": "Cartridge Error / Use Another Cartridge",
+      "short": "Bubble detected near sensors (coagulation)",
+      "explanation": "The analyzer detected a bubble on or near the sensors during a coagulation cartridge run. Try another cartridge and ensure the sample delivery device is free of air bubbles."
+    },
+    {
+      "codes": [
+        "L"
+      ],
+      "display": "Simulator: Potentiometric channel out of limits",
+      "short": "Potentiometric channel out of limits (simulator)",
+      "explanation": "Potentiometric channel out of limits during Electronic Simulator check. May occur due to moisture on contact pins after ambient temperature change. Contact i-STAT Technical Services."
+    },
+    {
+      "codes": [
+        "G"
+      ],
+      "display": "Simulator: Amperometric channel out of limits",
+      "short": "Amperometric channel out of limits (simulator)",
+      "explanation": "Amperometric channel out of limits during Electronic Simulator check. May occur if external simulator was not inserted straight. Contact i-STAT Technical Services."
+    },
+    {
+      "codes": [
+        "R",
+        "r"
+      ],
+      "display": "Simulator: Conductometric channel out of limits",
+      "short": "Conductometric channel out of limits (simulator)",
+      "explanation": "Conductometric channel resistance reading out of limits during Electronic Simulator check. Contact i-STAT Technical Services."
+    },
+    {
+      "codes": [
+        "t"
+      ],
+      "display": "Simulator: Thermal probe failure",
+      "short": "Thermal probe failure (simulator)",
+      "explanation": "Thermal probe failure detected during Electronic Simulator check. Contact i-STAT Technical Services."
+    },
+    {
+      "codes": [
+        "B"
+      ],
+      "display": "Simulator: Potentiometric channel B out of limits",
+      "short": "Potentiometric channel B out of limits (simulator)",
+      "explanation": "Potentiometric channel B out of limits during Electronic Simulator check. Contact i-STAT Technical Services."
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+# Source-only repository for the PQ i-STAT / ABL report generators.
+# Everything is ignored unless whitelisted below, so exports, generated
+# reports, histories (staff data), logs, runtimes and backups never get committed.
+/*
+!/.gitignore
+!/README.md
+!/iSTAT_App/
+!/ABL_App/
+!/PQ_Portable/
+!/PQ_Report_Generator_User_Guide.pptx
+!/PQ_Report_Generator_Security_Briefing.pptx
+
+# Inside the app folders: keep code, templates, docs; drop data and backups
+__pycache__/
+*.pyc
+*.bak
+*.log
+*history*.json
+*history*.json.*
+history.keymeta
+iSTAT_App/PrintAndPlanCreation_*
+ABL_App/picu_operator_list.xlsx
+
+# Portable bundle: only the portal, launcher and docs are source.
+# The app copies are deployed from iSTAT_App / ABL_App; python/ is the runtime.
+PQ_Portable/python/
+PQ_Portable/iSTAT_App/
+PQ_Portable/ABL_App/
+PQ_Portable/Reports/
+PQ_Portable/Reports_*/
+PQ_Portable/ABL_Reports_*/
+
+# Never any spreadsheets or generated Word reports
+*.xlsx
+*.docx
+!iSTAT_App/template.docx
+!ABL_App/template.docx
+
+# Claude Code local settings
+.claude/
