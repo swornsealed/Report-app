@@ -38,6 +38,57 @@ from docx.oxml import OxmlElement
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
+APP_COMPONENT = 'istat'
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  PC ENROLMENT — the bundle runs only on PCs enrolled via the portal (:5750).
+#  pq_enrolment.py lives at the bundle root; without it, or without a valid
+#  enrolment for this machine, every request is answered with a lock page.
+# ═══════════════════════════════════════════════════════════════════════════════
+def _load_enrolment():
+    import importlib.util
+    _here = os.path.dirname(os.path.abspath(__file__))
+    for cand in (os.path.join(_here, '..'), os.path.join(_here, '..', 'PQ_Portable')):
+        path = os.path.join(cand, 'pq_enrolment.py')
+        if os.path.exists(path):
+            try:
+                spec = importlib.util.spec_from_file_location('pq_enrolment', path)
+                mod  = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                return mod
+            except Exception as exc:
+                print(f'[ENROL] failed to load {path}: {exc}')
+                return None
+    return None
+
+_ENROL = _load_enrolment()
+if _ENROL is not None:
+    try:
+        _ENROL.record_launch(APP_COMPONENT)
+    except Exception:
+        pass
+
+_LOCK_PAGE = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>PC not enrolled</title>
+<style>body{font-family:-apple-system,Segoe UI,Arial,sans-serif;background:#F2F2F7;color:#17272E;display:flex;
+align-items:center;justify-content:center;height:100vh;margin:0}.card{background:#fff;border-radius:16px;
+padding:36px 40px;max-width:560px;box-shadow:0 10px 34px rgba(1,38,50,.25)}h1{color:#01485C;font-size:22px;margin:0 0 12px}
+p{line-height:1.5;margin:8px 0}code{background:#E5F2F0;padding:2px 6px;border-radius:6px}a{color:#01485C}</style></head>
+<body><div class="card"><h1>This PC is not enrolled</h1><p>{msg}</p>
+<p>Machine ID <code>{mid}</code> &middot; {host}</p>
+<p>Open the selection page at <a href="http://localhost:5750/">localhost:5750</a> and enrol this PC with the
+PoC team&rsquo;s enrolment password. Nothing can be generated until then.</p></div></body></html>"""
+
+@app.before_request
+def _enforce_enrolment():
+    if _ENROL is None:
+        return ('<h2 style="font-family:sans-serif;color:#B4540A">Enrolment module missing &mdash; '
+                'this copy of the bundle is incomplete and cannot run.</h2>'), 403
+    st = _ENROL.status()
+    if not st['allowed']:
+        body = (_LOCK_PAGE.replace('{msg}', st['message']).replace('{mid}', st['machine_id'])
+                .replace('{host}', st['hostname']))
+        return body, 403, {'Content-Type': 'text/html; charset=utf-8'}
+
 
 progress = {"total": 0, "done": 0, "current": "", "errors": [], "complete": False, "output": "", "reports": 0}
 
@@ -429,6 +480,7 @@ PER_DEVICE_HOSPITALS = (
     'meso_logan', 'suco_scuh', 'meso_princess alexandra', 'cqld_rockhampton',
     'wiba_bundaberg', 'meso_redland', 'wiba_hervey bay', 'suco_gympie',
     'wiba_maryborough', 'toca_thursday island', 'cqld_emerald',
+    'goco_robina',   # 5 wards (ED, ED 2, RASS, Radiology, Lab) — added 2026-09-27
 )
 
 # Devices whose data must generate under a different hospital, e.g.
