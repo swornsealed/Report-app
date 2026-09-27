@@ -1,0 +1,85 @@
+{
+  "timeline": [
+    {
+      "name": "portal",
+      "t": 3.43,
+      "caption": "Launch: the selection page, both engines ready",
+      "out_t": 3.43
+    },
+    {
+      "name": "about",
+      "t": 7.12,
+      "caption": "About this tool",
+      "out_t": 7.12
+    },
+    {
+      "name": "unlock",
+      "t": 13.29,
+      "caption": "The history is encrypted: the password comes first",
+      "out_t": 13.29
+    },
+    {
+      "name": "upload",
+      "t": 14.79,
+      "caption": "Drop the monthly export",
+      "out_t": 14.79
+    },
+    {
+      "name": "dropped",
+      "t": 17.33,
+      "caption": "The period fills in from the filename: August 2026",
+      "out_t": 17.33
+    },
+    {
+      "name": "hospitals",
+      "t": 25.29,
+      "caption": "Every hospital in the export, grouped by HHS",
+      "out_t": 25.29
+    },
+    {
+      "name": "selected",
+      "t": 31.08,
+      "caption": "Select All",
+      "out_t": 31.08
+    },
+    {
+      "name": "generate",
+      "t": 34.11,
+      "caption": "Generate: every hospital in turn, reports counted as they are written",
+      "out_t": 34.11
+    },
+    {
+      "name": "finishing",
+      "t": 567.75,
+      "caption": "Last hospitals and the area summaries",
+      "out_t": 54.11
+    },
+    {
+      "name": "results",
+      "t": 569.28,
+      "caption": "Done: 474 reports for 159 hospitals, 163 dormant analysers listed",
+      "out_t": 55.64
+    },
+    {
+      "name": "end",
+      "t": 574.46,
+      "caption": "",
+      "out_t": 60.82
+    }
+  ],
+  "progress": {
+    "complete": true,
+    "current": "Done",
+    "done": 159,
+    "dormant": 163,
+    "dormant_file": "Dormant_iSTATs_August2026.docx",
+    "errors": [],
+    "output": "C:\\Users\\addic\\Claude\\Projects\\Build better reports\\Landing_page\\work\\sandbox\\Reports\\iSTAT\\2026-08 August",
+    "reports": 474,
+    "total": 159
+  },
+  "month": "August 2026",
+  "speedup": 29.5,
+  "fast_from": 36.11,
+  "fast_to_out": 54.11
+}
