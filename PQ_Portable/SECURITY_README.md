@@ -2,7 +2,7 @@
 ## Security Overview for IT / Information Security
 
 **Audience:** Queensland Health IT and information-security staff, and the implementation team
-**Designed by:** Craig MacKenzie — Chemistry Department, Townsville Group Laboratory
+**Conceived, designed and built by:** Craig MacKenzie — Chemistry Department, Townsville Group Laboratory, Pathology Queensland
 **System:** Combined portable reporting bundle — i-STAT (Point of Care) and ABL (Blood Gas) operator report generators behind a single selection page
 **Form factor:** Self-contained folder on a removable USB drive (bundled Python 3.13 runtime + three loopback-only local web servers). No installation on the host PC; no admin rights required. Runs only on PCs holding a licence issued by the PoC lead (§6).
 **Document status:** Prepared September 2026; amended September 2026 — whole-drive encryption (BitLocker To Go) is now **enabled** on the drive; central PC licensing (§6) added 27 September 2026.

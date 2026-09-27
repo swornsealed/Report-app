@@ -7,6 +7,9 @@ WHAT THIS IS
   into: no Python, no packages, no admin rights, no internet ever.
     - i-STAT (Point of Care)   http://localhost:5757
     - ABL (Blood Gas)          http://localhost:5758
+  Conceived, designed and built by Craig MacKenzie, Chemistry
+  Department, Townsville Group Laboratory, for Pathology Queensland
+  Point of Care Testing. See 'About' on the selection page.
 
 TO USE
   1. Plug the USB stick into a Windows PC.
