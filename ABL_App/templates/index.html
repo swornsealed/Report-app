@@ -288,6 +288,22 @@
   .footer-crest img { display: block; height: 44px; }
   .footer-text { font-size: 12px; color: rgba(255,255,255,0.75); letter-spacing: 0.2px; }
   .hidden { display: none !important; }
+  /* History-encryption lock screen */
+  #lock-overlay { position: fixed; inset: 0; z-index: 50;
+    background: radial-gradient(900px 420px at 85% -10%, rgba(17,181,174,0.35), transparent 60%), linear-gradient(165deg, #012B38 0%, #01485C 55%, #0A5E6E 100%);
+    display: flex; align-items: center; justify-content: center; padding: 20px; }
+  #lock-overlay.hidden { display: none; }
+  .lock-card { background: #FFFFFF; border-radius: var(--radius); box-shadow: var(--shadow); width: 100%; max-width: 400px; padding: 30px 28px 26px; text-align: center; }
+  .lock-icon { width: 56px; height: 56px; margin: 0 auto 14px; border-radius: 16px; background: var(--blue-light); display: flex; align-items: center; justify-content: center; font-size: 26px; }
+  .lock-title { font-size: 19px; font-weight: 700; color: var(--blue); }
+  .lock-sub   { font-size: 13px; color: var(--text3); margin: 8px 0 18px; line-height: 1.5; }
+  .lock-card input[type=password] { width: 100%; padding: 12px 14px; margin-bottom: 10px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font); font-size: 15px; outline: none; background: var(--bg); }
+  .lock-card input[type=password]:focus { border-color: var(--teal); background: white; }
+  .lock-card input.hidden { display: none; }
+  .lock-btn { width: 100%; padding: 13px; margin-top: 4px; background: var(--blue); color: white; border: none; border-radius: var(--radius-sm); font-family: var(--font); font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 14px rgba(1,72,92,0.35); transition: all 0.2s; }
+  .lock-btn:hover { background: var(--blue-dark); }
+  .lock-error { color: var(--red); font-size: 13px; min-height: 18px; margin-top: 10px; font-weight: 600; }
+  .lock-note  { font-size: 11px; color: var(--text3); margin-top: 14px; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -449,7 +465,60 @@
   </div>
 </div>
 
+<!-- History-encryption lock screen -->
+<div id="lock-overlay" class="hidden">
+  <div class="lock-card">
+    <div class="lock-icon">🔒</div>
+    <div class="lock-title" id="lockTitle">History Protected</div>
+    <div class="lock-sub" id="lockSub">Enter the history password to continue.</div>
+    <input type="password" id="lockPw" placeholder="Password" autocomplete="off">
+    <input type="password" id="lockPw2" placeholder="Confirm password" autocomplete="off" class="hidden">
+    <button class="lock-btn" id="lockBtn" onclick="submitUnlock()">Unlock</button>
+    <div class="lock-error" id="lockError"></div>
+    <div class="lock-note" id="lockNote">The saved operator history on this drive is encrypted.
+      Reports cannot be generated until it is unlocked.</div>
+  </div>
+</div>
+
 <script>
+// ── History lock ─────────────────────────────────────────────
+function refreshLock() {
+  fetch('/lock_status').then(r => r.json()).then(s => {
+    const ov = document.getElementById('lock-overlay');
+    if (s.unlocked) { ov.classList.add('hidden'); return; }
+    ov.classList.remove('hidden');
+    if (!s.initialized) {
+      document.getElementById('lockTitle').textContent = 'Protect the History';
+      document.getElementById('lockSub').textContent =
+        'First-time setup: choose a password. The saved operator history will be encrypted with it and required every time the app starts.';
+      document.getElementById('lockPw2').classList.remove('hidden');
+      document.getElementById('lockBtn').textContent = 'Set Password & Encrypt';
+      document.getElementById('lockNote').textContent =
+        'Important: there is no recovery if the password is forgotten — the history would need to be reset. Minimum 8 characters.';
+    } else {
+      document.getElementById('lockTitle').textContent = 'History Protected';
+      document.getElementById('lockSub').textContent = 'Enter the history password to continue.';
+      document.getElementById('lockPw2').classList.add('hidden');
+      document.getElementById('lockBtn').textContent = 'Unlock';
+    }
+    document.getElementById('lockPw').focus();
+  }).catch(() => {});
+}
+function submitUnlock() {
+  const fd = new FormData();
+  fd.append('password', document.getElementById('lockPw').value);
+  fd.append('confirm',  document.getElementById('lockPw2').value);
+  document.getElementById('lockError').textContent = '';
+  fetch('/unlock', { method: 'POST', body: fd }).then(r => r.json()).then(d => {
+    if (d.ok) { document.getElementById('lock-overlay').classList.add('hidden'); document.getElementById('lockPw').value = ''; document.getElementById('lockPw2').value = ''; }
+    else { document.getElementById('lockError').textContent = d.error || 'Try again.'; }
+  }).catch(err => { document.getElementById('lockError').textContent = 'Error: ' + err; });
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !document.getElementById('lock-overlay').classList.contains('hidden')) submitUnlock();
+});
+refreshLock();
+
 let outputPath = '';
 let pollTimer  = null;
 let activeFile = null;

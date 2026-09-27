@@ -13,6 +13,15 @@ document writing.
 
 ## What it does
 
+> **Since 27 Sep 2026:** the operator and analyser histories are **AES-encrypted** with a
+> password chosen at first launch (same design as the i-STAT app; no recovery if forgotten);
+> every run also writes one **Hospital Summary** per hospital
+> (`ABL_<Hospital>_Hospital_Summary_<Month>.docx`: departments, analysers, error rates,
+> flagged and low-volume operator counts, and analysers with recent history that did not
+> appear this month); and the trend charts show the last 12 months in 12 fixed slots, never
+> beyond the report month, with every error segment labelled.
+
+
 1. You drop the monthly export (`.xlsx`) onto the page.
 2. The app lists every **Hospital → Department** found, with the analysers
    belonging to each department shown underneath. Tick the reports you want.

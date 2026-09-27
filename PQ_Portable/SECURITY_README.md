@@ -33,7 +33,7 @@ Classified per QGEA as **SENSITIVE (personal information of QH staff)**:
 | Data | Location | Protection |
 |---|---|---|
 | i-STAT rolling staff/device history (24 months) | `iSTAT_App\*_history.json` | **Encrypted twice**: application-level AES (§4) inside the BitLocker-encrypted drive |
-| ABL rolling histories | `ABL_App\abl_*.json` | **Encrypted (BitLocker To Go)** |
+| ABL rolling operator/analyser histories | `ABL_App\abl_*history.json` | **Encrypted twice**: application-level AES (§4) inside the BitLocker-encrypted drive |
 | Monthly middleware exports | `Monthly reports\` | **Encrypted (BitLocker To Go)** |
 | Generated Word reports | `Reports\iSTAT\<YYYY-MM Month>\`, `Reports\ABL\<YYYY-MM Month>\` | **Encrypted (BitLocker To Go)** |
 | Audit trails | audit / network logs in each app folder | Plaintext by design (accountability), inside the encrypted drive |
@@ -52,10 +52,11 @@ Classified per QGEA as **SENSITIVE (personal information of QH staff)**:
 - **Auditor's self-test:** disconnect the host from the network and use the tool end-to-end;
   behaviour is identical. Then inspect the network audit logs.
 
-## 4. Encryption of stored i-STAT history (implemented)
+## 4. Encryption of stored history — both engines (implemented)
 
-The i-STAT history files contain named staff members' error performance and are encrypted at
-rest at the application level:
+The i-STAT history files and the ABL operator/analyser history files contain named staff
+members' error performance and are encrypted at rest at the application level (each engine
+has its own password prompt and key file; the team may choose the same password for both):
 
 - **Cipher:** Fernet (AES-128-CBC + HMAC-SHA256 authenticated encryption) from the maintained
   `cryptography` library — no home-made crypto. Tampering is detected, not just prevented.
@@ -63,7 +64,7 @@ rest at the application level:
 - **Password handling:** chosen by the operating staff on first launch (min. 8 characters);
   **never stored in any form**. `history.keymeta` holds only the salt and an encrypted
   verifier — possession of the drive yields ciphertext only.
-- **Enforcement:** the i-STAT engine refuses to generate reports until unlocked; every unlock
+- **Enforcement:** each engine refuses to generate reports until unlocked; every unlock
   attempt, **including failures**, is written to the audit log. Pre-existing plaintext backup
   copies of the history were swept into the same encrypted format at setup.
 - **No recovery path** by design: a forgotten password requires a history reset (rebuildable
@@ -71,9 +72,9 @@ rest at the application level:
 
 ## 5. Whole-drive encryption — BitLocker To Go (**enabled**)
 
-Application-level encryption deliberately covers the i-STAT history only. The monthly
-exports, generated reports, and ABL histories carry equivalent staff data, so the drive
-itself is encrypted with **BitLocker To Go** (AES), enabled from a QH machine in
+Application-level encryption covers the histories of both engines. The monthly exports
+and generated reports carry equivalent staff data, so the drive itself is encrypted with
+**BitLocker To Go** (AES), enabled from a QH machine in
 September 2026. A lost or stolen drive now exposes no readable data of any kind; daily
 use is unchanged apart from the password prompt when the drive is inserted. The
 combination — password-gated application AES for the most sensitive records, inside a
@@ -123,7 +124,7 @@ launch checks for a **licence file** covering the PC it is running on:
   error rather than producing silently empty or wrong reports; metadata/footer lines in
   exports are filtered out.
 - **Accountability:** each engine's `audit.log` records every report generation (timestamp,
-  Windows username, period, scope); the i-STAT log also records encryption/unlock events.
+  Windows username, period, scope); both logs also record encryption/unlock events.
 
 ## 8. Alignment with QH / QGEA security expectations
 
@@ -141,8 +142,7 @@ decision. The controls map to the obligations QH commonly applies:
 **Known limitations (stated for transparency):** locally managed tool, not centrally
 patched; the history password and the BitLocker password are shared secrets within the PoC
 team; the licence signing key is held by the PoC lead alone (its loss means re-issuing every
-licence, never a bypass); licence enforcement is code on the drive (evidence, not DRM); audit logs are plaintext by design (inside the encrypted drive); ABL histories rely on
-BitLocker rather than app-level encryption; and some managed SOE devices may block
+licence, never a bypass); licence enforcement is code on the drive (evidence, not DRM); audit logs are plaintext by design (inside the encrypted drive); and some managed SOE devices may block
 executables on removable media (AppLocker) — which blocks the tool entirely rather than
 degrading its security.
 
@@ -155,7 +155,8 @@ degrading its security.
 3. **Drive encryption test:** insert the drive on any machine — Windows demands the
    BitLocker password before any file is accessible.
 4. **History encryption test:** after unlocking the drive, open any
-   `iSTAT_App\*_history.json` in a hex editor — still ciphertext prefixed `ISTATENC1`;
+   `iSTAT_App\*_history.json` (prefix `ISTATENC1`) or `ABL_App\abl_*history.json`
+   (prefix `ABLENC1`) in a hex editor — still ciphertext;
    nothing recoverable without the application password.
 5. **Audit trail:** review each engine's `audit.log` for generation and unlock records tied
    to Windows usernames.

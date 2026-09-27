@@ -21,7 +21,8 @@ TO USE
      root. Licences are bound to the PC and expire every 12 months
      with the QIS review.
   4. Choose the report type from the drop-down and click Open.
-  5. i-STAT asks for the history password before it will run.
+  5. Each app asks for its history password before it will run
+     (first ever launch of each: choose the password).
   6. When finished, close the black console window (stops everything),
      then safely eject.
 
@@ -29,8 +30,8 @@ WHERE THINGS GO
   Generated reports ... Reports\iSTAT\<YYYY-MM Month>\  (i-STAT) and
                         Reports\ABL\<YYYY-MM Month>\    (ABL) on this stick
   Source exports ...... keep them in Monthly reports\ at the drive root
-  Histories ........... inside iSTAT_App\ (ENCRYPTED - password needed)
-                        and ABL_App\ (covered by BitLocker To Go)
+  Histories ........... inside iSTAT_App\ and ABL_App\ (ENCRYPTED -
+                        password needed; plus BitLocker To Go)
   Audit logs .......... audit/network logs inside each app folder;
                         licence_audit.log at the drive root
   Licences ............ *.lic files at the drive root (see the
@@ -49,8 +50,8 @@ FOLDER LAYOUT (keep together)
 SECURITY
   - See SECURITY_README.md for the full security overview
     for IT staff.
-  - i-STAT history files are encrypted; the password is set by the
-    PoC team and is NOT recoverable if forgotten.
+  - i-STAT and ABL history files are encrypted; the passwords are set
+    by the PoC team and are NOT recoverable if forgotten.
   - The whole drive is protected with BitLocker To Go.
   - The bundle runs only on PCs licensed by the PoC lead (it is
     not signed off by QH IT for general use). Licences cannot be

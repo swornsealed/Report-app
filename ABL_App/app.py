@@ -126,6 +126,7 @@ ERROR_COLORS = {
 
 # ── Flagging thresholds ───────────────────────────────────────────────────────
 MIN_TESTS = 10    # flagging requires MORE than this many tests in the month (11+)
+CHART_MONTHS = 12 # every trend chart shows the last 12 months, 12 fixed slots
 FLAG_PCT  = 10.0  # Pct. error above this flags the operator
 
 # ── PICU operator list ────────────────────────────────────────────────────────
@@ -184,6 +185,92 @@ PICU_LIST_PATH  = os.path.join(APP_DIR, 'picu_operator_list.xlsx')
 TEMPLATE_PATH   = os.path.join(APP_DIR, 'template.docx')   # PQ letterhead (logo header/footer)
 
 PORT = 5758   # Separate from iSTAT app (5757)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  HISTORY ENCRYPTION (AES via Fernet; key derived from password, never stored)
+#  Same design as the i-STAT app: the operator and analyser histories hold
+#  named staff data, so they are ciphertext at rest and the app refuses to
+#  generate until unlocked. history.keymeta holds only a salt and a verifier.
+# ═══════════════════════════════════════════════════════════════════════════════
+import base64 as _b64
+import glob as _hist_glob
+
+KEYMETA_PATH = os.path.join(APP_DIR, 'history.keymeta')
+_ENC_MAGIC   = b'ABLENC1'
+_hist_fernet = None            # set only after a successful unlock
+
+class _HistoryLocked(RuntimeError):
+    pass
+
+def _derive_key(password, salt):
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+    from cryptography.hazmat.primitives import hashes
+    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=600_000)
+    return _b64.urlsafe_b64encode(kdf.derive(password.encode('utf-8')))
+
+def _encryption_initialized():
+    return os.path.exists(KEYMETA_PATH)
+
+def _unlocked():
+    return _hist_fernet is not None
+
+def _encrypt_existing_plaintext():
+    """One-time sweep: encrypt any plaintext history files (incl. .bak copies)."""
+    for p in _hist_glob.glob(os.path.join(APP_DIR, '*history*')):
+        if not os.path.isfile(p) or os.path.abspath(p) == os.path.abspath(KEYMETA_PATH):
+            continue
+        try:
+            with open(p, 'rb') as fh:
+                raw = fh.read()
+            if raw.startswith(_ENC_MAGIC):
+                continue
+            json.loads(raw.decode('utf-8'))       # only touch valid JSON files
+            with open(p, 'wb') as fh:
+                fh.write(_ENC_MAGIC + _hist_fernet.encrypt(raw))
+        except Exception:
+            continue
+
+def _set_history_password(password):
+    global _hist_fernet
+    from cryptography.fernet import Fernet
+    salt = os.urandom(16)
+    f = Fernet(_derive_key(password, salt))
+    meta = {'salt': _b64.b64encode(salt).decode(), 'verifier': f.encrypt(b'ABL-HISTORY-OK').decode()}
+    with open(KEYMETA_PATH, 'w') as fh:
+        json.dump(meta, fh)
+    _hist_fernet = f
+    _encrypt_existing_plaintext()
+
+def _try_unlock(password):
+    global _hist_fernet
+    from cryptography.fernet import Fernet
+    try:
+        with open(KEYMETA_PATH) as fh:
+            meta = json.load(fh)
+        f = Fernet(_derive_key(password, _b64.b64decode(meta['salt'])))
+        if f.decrypt(meta['verifier'].encode()) == b'ABL-HISTORY-OK':
+            _hist_fernet = f
+            _encrypt_existing_plaintext()
+            return True
+    except Exception:
+        pass
+    return False
+
+def _read_history_file(path):
+    with open(path, 'rb') as fh:
+        raw = fh.read()
+    if raw.startswith(_ENC_MAGIC):
+        if not _unlocked():
+            raise _HistoryLocked('History files are encrypted — unlock first.')
+        raw = _hist_fernet.decrypt(raw[len(_ENC_MAGIC):])
+    return json.loads(raw.decode('utf-8'))
+
+def _write_history_file(path, obj):
+    data = json.dumps(obj, indent=2).encode('utf-8')
+    if _unlocked():
+        data = _ENC_MAGIC + _hist_fernet.encrypt(data)
+    with open(path, 'wb') as fh:
+        fh.write(data)
 
 # ── Audit log ─────────────────────────────────────────────────────────────────
 _audit = logging.getLogger('abl.audit')
@@ -512,18 +599,19 @@ def load_data(excel_path):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _load_json(path):
+    """History loader: transparently decrypts; a locked history is an error, not an empty one."""
     if os.path.exists(path):
         try:
-            with open(path, encoding='utf-8') as f:
-                return json.load(f)
+            return _read_history_file(path)
+        except _HistoryLocked:
+            raise
         except Exception:
             pass
     return {}
 
 def _save_json(path, data):
     try:
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2)
+        _write_history_file(path, data)
     except Exception:
         pass
 
@@ -578,7 +666,18 @@ def _update_op_history(op_hist, akey, operator, year, month_num, error_rate,
 #  TREND CHART
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _short_code_name(c):
+    n = ABL_ERRORS.get(c, '')
+    return n if len(n) <= 34 else n[:32].rstrip() + '…'
+
+def _label_colour_for(hex_colour):
+    """White on dark segments, near-black on light ones."""
+    h = hex_colour.lstrip('#'); r, g, b = (int(h[i:i+2], 16) for i in (0, 2, 4))
+    return 'white' if (0.299 * r + 0.587 * g + 0.114 * b) < 150 else '#2A2A2A'
+
 def _plot_error_trend(entries, label):
+    """Error-rate trend over the performance bands: last CHART_MONTHS months in
+    12 fixed slots (bar/point spacing never changes), legend beneath."""
     try:
         import matplotlib
         matplotlib.use('Agg')
@@ -588,73 +687,52 @@ def _plot_error_trend(entries, label):
 
         if not entries:
             return None
-
+        entries = sorted(entries, key=lambda e: (int(e['year']), int(e['month'])))[-CHART_MONTHS:]
         labels = [f"{calendar.month_abbr[e['month']]}\n{str(e['year'])[2:]}" for e in entries]
         values = [e['error_rate'] for e in entries]
 
-        fig, ax = plt.subplots(figsize=(9, 3.5))
-        fig.patch.set_facecolor('white')
-        ax.set_facecolor('white')
-
+        fig, ax = plt.subplots(figsize=(9, 5.0))
+        fig.patch.set_facecolor('white'); ax.set_facecolor('white')
         y_ceil = max(max(values) * 1.35, 14)
-        ax.axhspan(0,  4,      alpha=0.07, color='#538135', zorder=0)
-        ax.axhspan(4,  6,      alpha=0.07, color='#2F5496', zorder=0)
-        ax.axhspan(6,  10,     alpha=0.07, color='#FF8000', zorder=0)
+        ax.axhspan(0, 4, alpha=0.07, color='#538135', zorder=0)
+        ax.axhspan(4, 6, alpha=0.07, color='#2F5496', zorder=0)
+        ax.axhspan(6, 10, alpha=0.07, color='#FF8000', zorder=0)
         ax.axhspan(10, y_ceil, alpha=0.07, color='#FF0000', zorder=0)
-
         for thresh, col in [(4, '#538135'), (6, '#2F5496'), (10, '#FF0000')]:
             ax.axhline(thresh, color=col, linewidth=0.8, linestyle='--', alpha=0.55)
-
         xs = list(range(len(labels)))
-        ax.plot(xs, values, color='#305496', linewidth=2.2, marker='o',
-                markersize=6, markerfacecolor='white',
-                markeredgecolor='#305496', markeredgewidth=2, zorder=3)
-
+        ax.plot(xs, values, color='#305496', linewidth=3, marker='o', markersize=8,
+                markerfacecolor='white', markeredgecolor='#305496', markeredgewidth=2, zorder=3)
         for xi, yi in zip(xs, values):
             _, lc = get_perf_label(yi)
-            rgb = (lc[0] / 255, lc[1] / 255, lc[2] / 255)
-            ax.annotate(f'{yi:.1f}%', (xi, yi),
-                        textcoords='offset points', xytext=(0, 9),
-                        ha='center', fontsize=7.5, color=rgb, fontweight='bold')
-
-        ax.set_xticks(xs)
-        ax.set_xticklabels(labels, fontsize=8)
-        ax.set_ylabel('Error Rate %', fontsize=9)
-        ax.set_ylim(0, y_ceil)
-        ax.set_title(f'Operator Error Rate Trend  —  {label}',
-                     fontsize=10, color='#1F497D', fontweight='bold', pad=10)
+            ax.annotate(f'{yi:.1f}%', (xi, yi), textcoords='offset points', xytext=(0, 9),
+                        ha='center', fontsize=11, color=(lc[0] / 255, lc[1] / 255, lc[2] / 255), fontweight='bold')
+        ax.set_xticks(xs); ax.set_xticklabels(labels, fontsize=12)
+        ax.set_xlim(-0.6, CHART_MONTHS - 0.4)
+        ax.set_ylabel('Error Rate %', fontsize=13.5); ax.set_ylim(0, y_ceil)
+        ax.set_title(f'Error Rate Trend  —  {label}  (last {CHART_MONTHS} months)',
+                     fontsize=15, color='#1F497D', fontweight='bold', pad=10)
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f'{v:.0f}%'))
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False); ax.spines['right'].set_visible(False)
         ax.tick_params(axis='both', labelsize=8)
-
-        legend = [
-            mpatches.Patch(facecolor='#538135', alpha=0.4, label='Excellent  <4%'),
-            mpatches.Patch(facecolor='#2F5496', alpha=0.4, label='Acceptable  4–6%'),
-            mpatches.Patch(facecolor='#FF8000', alpha=0.4, label='Monitor  6–10%'),
-            mpatches.Patch(facecolor='#FF0000', alpha=0.4, label='Needs attention  >10%'),
-        ]
-        ax.legend(handles=legend, loc='upper right', fontsize=7,
-                  framealpha=0.85, ncol=2)
-
-        plt.tight_layout()
+        legend = [mpatches.Patch(facecolor='#538135', alpha=0.4, label='Excellent  <4%'),
+                  mpatches.Patch(facecolor='#2F5496', alpha=0.4, label='Acceptable  4–6%'),
+                  mpatches.Patch(facecolor='#FF8000', alpha=0.4, label='Monitor  6–10%'),
+                  mpatches.Patch(facecolor='#FF0000', alpha=0.4, label='Needs attention  >10%')]
+        fig.legend(handles=legend, loc='lower center', ncol=4, fontsize=10.5, frameon=False, bbox_to_anchor=(0.5, -0.01))
+        fig.subplots_adjust(bottom=0.2)
         buf = io.BytesIO()
-        plt.savefig(buf, format='png', dpi=150, bbox_inches='tight',
-                    facecolor='white', edgecolor='none')
-        plt.close(fig)
-        buf.seek(0)
+        plt.savefig(buf, format='png', dpi=150, bbox_inches='tight', facecolor='white', edgecolor='none')
+        plt.close(fig); buf.seek(0)
         return buf
-
-    except ImportError:
-        return None
     except Exception:
         return None
 
-
 def _plot_volume_trend(entries, label):
-    """Two-panel chart: tests-per-month line on top, and beneath it stacked
-    monthly bars of each error type as % of that month's tests — one colour
-    per error code, legend under the chart."""
+    """Two-panel chart: tests-per-month line on top, stacked monthly bars of
+    each error code as % of that month's tests beneath. 12 fixed slots, fixed
+    bar width, and EVERY segment carries its percentage — inside when it fits,
+    beside the bar in the segment's colour when not."""
     try:
         import matplotlib
         matplotlib.use('Agg')
@@ -662,120 +740,85 @@ def _plot_volume_trend(entries, label):
         import matplotlib.patches as mpatches
         import calendar
 
-        pts = [e for e in entries if int(e.get('total_tests', 0) or 0) > 0]
+        pts = sorted((e for e in entries if int(e.get('total_tests', 0) or 0) > 0),
+                     key=lambda e: (int(e['year']), int(e['month'])))[-CHART_MONTHS:]
         if not pts:
             return None
-
         labels = [f"{calendar.month_abbr[e['month']]}\n{str(e['year'])[2:]}" for e in pts]
         values = [int(e['total_tests']) for e in pts]
-        xs     = list(range(len(labels)))
+        xs = list(range(len(labels))); BAR_W = 0.62
+        codes_present = [c for c in ERROR_CODES if any((e.get('codes') or {}).get(c) for e in pts)]
 
-        # Per-month error-type % of tests, in fixed code order
-        codes_present = [c for c in ERROR_CODES
-                         if any((e.get('codes') or {}).get(c) for e in pts)]
-        pct = {c: [round((e.get('codes') or {}).get(c, 0) / e['total_tests'] * 100, 3)
-                   for e in pts] for c in codes_present}
-
-        fig, ax = plt.subplots(figsize=(9, 3.9))
+        fig, (ax, ax2) = plt.subplots(2, 1, figsize=(9, 7.2), sharex=True,
+                                      gridspec_kw={'height_ratios': [1.0, 1.45], 'hspace': 0.12})
         fig.patch.set_facecolor('white')
-        ax.set_facecolor('white')
-        ax2 = ax.twinx()
+        for a_ in (ax, ax2):
+            a_.set_facecolor('white'); a_.set_xlim(-0.6, CHART_MONTHS - 0.4)
+            a_.spines['top'].set_visible(False); a_.spines['right'].set_visible(False)
 
-        # ── Error-mix bars on the RIGHT axis (% of that month's tests) ────
+        ax.set_ylim(0, max(values) * 1.30)
+        ax.plot(xs, values, color='#538135', linewidth=3, marker='o', markersize=8,
+                markerfacecolor='white', markeredgecolor='#538135', markeredgewidth=2, zorder=4)
+        for xi, yi in zip(xs, values):
+            ax.annotate(f'{yi:,}', (xi, yi), textcoords='offset points', xytext=(0, 9),
+                        ha='center', fontsize=11, color='#538135', fontweight='bold')
+        ax.set_ylabel('Tests run', fontsize=13, color='#538135')
+        ax.set_title(f'Tests Run & Error Mix  —  {label}  (last {CHART_MONTHS} months)',
+                     fontsize=15, color='#1F497D', fontweight='bold', pad=10)
+        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f'{v:,.0f}'))
+        ax.tick_params(axis='y', labelsize=10, colors='#538135')
+        ax.grid(axis='y', color='#D9D9D9', linewidth=0.6, alpha=0.6, zorder=0)
+
         month_tot = []
-        for i, e in enumerate(pts):
-            codes  = {c: n for c, n in (e.get('codes') or {}).items() if n}
-            m_errs = sum(codes.values())
-            month_tot.append(m_errs / e['total_tests'] * 100 if m_errs else 0.0)
-        r_max = max(max(month_tot) * 2.2, 1.0)   # keep bars in the lower zone
+        for e in pts:
+            codes = {c: n for c, n in (e.get('codes') or {}).items() if n}
+            month_tot.append(sum(codes.values()) / e['total_tests'] * 100 if codes else 0.0)
+        r_max = max(max(month_tot) * 1.22, 1.0)
         ax2.set_ylim(0, r_max)
-
-        # Dark text on the light segment colours, white on the dark ones
-        _DARK_TEXT = {'593': '#4A3000', '722': '#5A1030'}
-
+        panel_pts = 7.2 * 72 * (1.45 / 2.45) * 0.80
+        min_inside = r_max * (10.0 / panel_pts)
         for i, e in enumerate(pts):
-            codes  = {c: n for c, n in (e.get('codes') or {}).items() if n}
-            m_errs = sum(codes.values())
-            if not m_errs:
+            codes = {c: n for c, n in (e.get('codes') or {}).items() if n}
+            if not codes:
                 continue
-            bottom = 0.0
+            bottom, side_y = 0.0, -1.0
             for c in ERROR_CODES:
                 n = codes.get(c, 0)
                 if not n:
                     continue
                 seg = n / e['total_tests'] * 100
-                ax2.bar([i], [seg], bottom=[bottom], width=0.5,
-                        color=ERROR_COLORS.get(c, '#888780'), zorder=2,
-                        edgecolor='white', linewidth=0.5)
-                # Percentage inside the segment (skipped if too thin to read)
-                if seg / r_max >= 0.055:
-                    ax2.annotate(f'{seg:.2f}%', (i, bottom + seg / 2),
-                                 ha='center', va='center', fontsize=6.2,
-                                 fontweight='bold', zorder=3,
-                                 color=_DARK_TEXT.get(c, 'white'))
+                col = ERROR_COLORS.get(c, '#888780')
+                ax2.bar([i], [seg], bottom=[bottom], width=BAR_W, color=col, zorder=2, edgecolor='white', linewidth=0.5)
+                mid = bottom + seg / 2
+                if seg >= min_inside:
+                    ax2.annotate(f'{seg:.1f}%', (i, mid), ha='center', va='center', fontsize=8.6,
+                                 fontweight='bold', zorder=3, color=_label_colour_for(col))
+                else:
+                    y = max(mid, side_y + min_inside * 0.9)
+                    ax2.annotate(f'{seg:.1f}%', (i + BAR_W / 2 + 0.03, y), ha='left', va='center',
+                                 fontsize=7.2, fontweight='bold', color=col, zorder=3)
+                    side_y = y
                 bottom += seg
-            # Total for the month above the stack
-            ax2.annotate(f'{month_tot[i]:.1f}%', (i, bottom),
-                         textcoords='offset points', xytext=(0, 4),
-                         ha='center', fontsize=7, color='#444444',
-                         fontweight='bold', zorder=3)
-
-        ax2.set_ylabel('Errors, % of tests', fontsize=9, color='#7A7A7A')
+            ax2.annotate(f'{month_tot[i]:.1f}%', (i, bottom), textcoords='offset points', xytext=(0, 4),
+                         ha='center', fontsize=10.5, color='#444444', fontweight='bold', zorder=3)
+        ax2.set_ylabel('Errors, % of tests', fontsize=13, color='#7A7A7A')
         ax2.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f'{v:g}%'))
-        ax2.tick_params(axis='y', labelsize=8, colors='#7A7A7A')
-        ax2.spines['top'].set_visible(False)
-
-        # ── Tests-per-month line on the LEFT axis, drawn above the bars ───
-        ax.set_ylim(0, max(values) * 1.30)
-        ax.plot(xs, values, color='#538135', linewidth=2.2, marker='o',
-                markersize=6, markerfacecolor='white',
-                markeredgecolor='#538135', markeredgewidth=2, zorder=4)
-        for xi, yi in zip(xs, values):
-            ax.annotate(f'{yi:,}', (xi, yi),
-                        textcoords='offset points', xytext=(0, 9),
-                        ha='center', fontsize=7.5, color='#538135',
-                        fontweight='bold')
-        ax.set_zorder(ax2.get_zorder() + 1)   # line layer above the bars
-        ax.patch.set_visible(False)
-
-        ax.set_ylabel('Tests run', fontsize=9, color='#538135')
-        ax.set_title(f'Tests Run & Error Mix  —  {label}',
-                     fontsize=10, color='#1F497D', fontweight='bold', pad=10)
-        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f'{v:,.0f}'))
-        ax.set_xticks(xs)
-        ax.set_xticklabels(labels, fontsize=8)
-        ax.spines['top'].set_visible(False)
-        ax.tick_params(axis='y', labelsize=8, colors='#538135')
-        ax.tick_params(axis='x', labelsize=8)
-        ax.grid(axis='y', color='#D9D9D9', linewidth=0.6, alpha=0.6, zorder=0)
-
-        # ── Legend under the chart: one entry per error code present ──────
+        ax2.tick_params(axis='y', labelsize=10, colors='#7A7A7A')
+        ax2.set_xticks(xs); ax2.set_xticklabels(labels, fontsize=11)
+        ax2.grid(axis='y', color='#D9D9D9', linewidth=0.6, alpha=0.6, zorder=0)
         if codes_present:
-            handles = [mpatches.Patch(
-                           facecolor=ERROR_COLORS.get(c, '#888780'),
-                           label=f'{c}  {ABL_ERRORS.get(c, "")[:26]}')
+            handles = [mpatches.Patch(facecolor=ERROR_COLORS.get(c, '#888780'), label=f'{c}  {_short_code_name(c)}')
                        for c in codes_present]
-            fig.legend(handles=handles, loc='lower center',
-                       ncol=min(3, len(handles)), fontsize=7,
-                       frameon=False, bbox_to_anchor=(0.5, -0.01))
-            fig.subplots_adjust(bottom=0.26)
-
+            fig.legend(handles=handles, loc='lower center', ncol=min(3, len(handles)), fontsize=9.5,
+                       frameon=False, bbox_to_anchor=(0.5, -0.005))
+            fig.subplots_adjust(bottom=0.19)
         buf = io.BytesIO()
-        plt.savefig(buf, format='png', dpi=150, bbox_inches='tight',
-                    facecolor='white', edgecolor='none')
-        plt.close(fig)
-        buf.seek(0)
+        plt.savefig(buf, format='png', dpi=150, bbox_inches='tight', facecolor='white', edgecolor='none')
+        plt.close(fig); buf.seek(0)
         return buf
-
-    except ImportError:
-        return None
     except Exception:
         return None
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  REPORT GENERATION
-# ═══════════════════════════════════════════════════════════════════════════════
 
 def _render_op_rows(op_tbl, op_grp):
     """Fill an operator table (built by _operator_table) with rows + TOTAL."""
@@ -1023,15 +1066,19 @@ def generate_report(hospital, department, df_dept, report_month,
             entries = history.get(_anlz_key(hospital, department, an['analyzer']))
             if not entries:
                 continue
+            # never chart months after the report month (re-running an older
+            # month must not show what came later)
+            entries = [e for e in entries
+                       if (int(e['year']), int(e['month'])) <= (int(report_year), int(report_month_num))]
             chart = _plot_error_trend(entries, f"{an['analyzer']} — {department}")
             if chart:
                 p = doc.add_paragraph()
-                p.add_run().add_picture(chart, width=Inches(6.2))
+                p.add_run().add_picture(chart, width=Inches(7.2))   # full printable width
                 plotted = True
             vol = _plot_volume_trend(entries, f"{an['analyzer']} — {department}")
             if vol:
                 p = doc.add_paragraph()
-                p.add_run().add_picture(vol, width=Inches(6.2))
+                p.add_run().add_picture(vol, width=Inches(7.2))
                 plotted = True
     if not plotted:
         p = doc.add_paragraph()
@@ -1242,6 +1289,181 @@ def generate_report(hospital, department, df_dept, report_month,
     return doc
 
 
+def _blank_doc(kind, subtitle):
+    """PQ letterhead document with the standard title block ('Radiometer ABL <kind>')."""
+    doc = Document(TEMPLATE_PATH)
+    body = doc.element.body
+    sect = body.find(qn('w:sectPr'))
+    for child in list(body):
+        if child != sect:
+            body.remove(child)
+    root = doc.element
+    old_bg = root.find(qn('w:background'))
+    if old_bg is not None:
+        root.remove(old_bg)
+    bg = OxmlElement('w:background'); bg.set(qn('w:color'), 'FFFFFF'); bg.set(qn('w:themeColor'), 'background1')
+    root.insert(0, bg)
+    LOGO_INDENT = Inches(2127 / 1440)
+    p = doc.add_paragraph(style='Title'); p.paragraph_format.left_indent = LOGO_INDENT
+    _run(p, 'Pathology Queensland', size=12, color=C_DARK_BLUE)
+    p = doc.add_paragraph(style='Title'); p.paragraph_format.left_indent = LOGO_INDENT
+    _run(p, f'Radiometer ABL {kind}', size=20, color=C_DARK_BLUE)
+    p = doc.add_paragraph(style='Subtitle'); p.paragraph_format.first_line_indent = LOGO_INDENT
+    r = _run(p, subtitle, size=18, color=C_GREEN)
+    try:
+        r.style = doc.styles['DocSubTitle']
+    except Exception:
+        pass
+    doc.add_paragraph()
+    return doc
+
+def _hospital_summary_rows(hospital, df):
+    """Per department and per analyser figures for one hospital from this month's export."""
+    hd = df[df['Hospital'].astype(str).str.strip() == hospital]
+    depts = []
+    for dept, dgrp in hd.groupby(hd['Department'].astype(str).str.strip()):
+        if not dept or dept.lower() in ('none', 'nan'):
+            continue
+        analysers = []
+        for anlz, agrp in dgrp.groupby(dgrp['Analyzer'].astype(str).str.strip()):
+            tot = int(agrp['TotalTests'].max()) if 'TotalTests' in agrp.columns else 0
+            if tot <= 0:
+                tot = int(agrp['Tests'].sum())
+            errs = int(agrp['TotalErrors'].sum())
+            analysers.append({'analyzer': anlz, 'tests': tot, 'errors': errs,
+                              'rate': round(errs / tot * 100, 2) if tot else 0.0})
+        tests = sum(a['tests'] for a in analysers); errs = sum(a['errors'] for a in analysers)
+        ops = dgrp.groupby(dgrp['Operator'].astype(str).str.strip()) if 'Operator' in dgrp.columns else []
+        flagged = sorted(op for op, g in ops if bool(g['Flagged'].any())) if 'Operator' in dgrp.columns else []
+        low = sum(1 for op, g in ops if not bool(g['Flagged'].any())
+                  and 0 < int(g['Tests'].sum()) <= MIN_TESTS) if 'Operator' in dgrp.columns else 0
+        n_ops = dgrp['Operator'].astype(str).str.strip().nunique() if 'Operator' in dgrp.columns else 0
+        depts.append({'department': dept, 'analysers': analysers, 'tests': tests, 'errors': errs,
+                      'rate': round(errs / tests * 100, 2) if tests else 0.0,
+                      'operators': n_ops, 'flagged': flagged, 'low': low})
+    return sorted(depts, key=lambda d: d['department'].lower())
+
+def _analysers_not_seen(hospital, df, history, report_year, report_month_num, months=3):
+    """Analysers of this hospital with history in the last `months` months that are absent this month."""
+    present = {(str(d).strip(), str(a).strip())
+               for d, a in zip(df[df['Hospital'].astype(str).str.strip() == hospital]['Department'],
+                               df[df['Hospital'].astype(str).str.strip() == hospital]['Analyzer'])}
+    cur = _month_idx(report_year, report_month_num)
+    out = []
+    for key, ents in (history or {}).items():
+        parts = key.split('|')
+        if len(parts) != 3 or parts[0].strip() != hospital:
+            continue
+        prior = [e for e in ents if _month_idx(e['year'], e['month']) < cur]
+        if not prior:
+            continue
+        last = max(prior, key=lambda e: _month_idx(e['year'], e['month']))
+        if cur - _month_idx(last['year'], last['month']) <= months and (parts[1], parts[2]) not in present:
+            import calendar
+            out.append({'department': parts[1], 'analyzer': parts[2],
+                        'last': f"{calendar.month_abbr[last['month']]} {last['year']}", 'tests': last.get('total_tests', 0)})
+    return sorted(out, key=lambda x: (x['department'], x['analyzer']))
+
+def _write_hospital_summary(hospital, df, history, report_month, report_month_num, report_year, out_path):
+    depts = _hospital_summary_rows(hospital, df)
+    if not depts:
+        return False
+    missing = _analysers_not_seen(hospital, df, history, report_year, report_month_num)
+    tests = sum(d['tests'] for d in depts); errs = sum(d['errors'] for d in depts)
+    rate = round(errs / tests * 100, 2) if tests else 0.0
+    label, lc = get_perf_label(rate)
+    n_an = sum(len(d['analysers']) for d in depts)
+    n_flag = sum(len(d['flagged']) for d in depts); n_low = sum(d['low'] for d in depts)
+    doc = _blank_doc('Hospital Summary', f'{hospital} – {report_month}')
+
+    _heading(doc, 'Hospital Snapshot')
+    snap = doc.add_table(rows=0, cols=3); _add_borders(snap); _set_col_widths(snap, [2500, 4200, 2300])
+    hdr = snap.add_row().cells
+    for c, lbl in zip(hdr, ['Indicator', 'Value', 'Status']):
+        _hdr_cell(c, lbl, FILL_GREY_HDR)
+    def row(label_, value, status='', colour=None, fill=FILL_WHITE):
+        r = snap.add_row().cells
+        _data_cell(r[0], label_, fill, C_BLUE, bold=True, size=9)
+        _data_cell(r[1], value, fill, C_BLUE, size=9)
+        _data_cell(r[2], status, fill, colour or C_BLUE, bold=True, size=9)
+    row('Hospital Error Rate', f'{rate:.2f}%  ({errs} errors / {tests} tests across {n_an} analyser{"s" if n_an != 1 else ""})', label, lc, FILL_ALT_ROW)
+    row('Departments', ',  '.join(d['department'] for d in depts))
+    row('Operators Flagged', (f'{n_flag} operator{"s" if n_flag != 1 else ""} over {FLAG_PCT:.0f}% error with more than {MIN_TESTS} tests: '
+                              + ', '.join(f"{d['department']} ({len(d['flagged'])})" for d in depts if d['flagged'])) if n_flag
+        else f'No operator over {FLAG_PCT:.0f}% error with more than {MIN_TESTS} tests',
+        '⚠ Review' if n_flag else '✓ Clear', C_RED_TEXT if n_flag else C_GREEN_PASS, FILL_ALT_ROW)
+    row('Low-volume Operators', f'{n_low} with {MIN_TESTS} tests or fewer — not assessed' if n_low else 'None')
+    row('Analysers Not Seen', ('; '.join(f"{m['department']} {m['analyzer']} (last {m['last']})" for m in missing)) if missing
+        else 'Every analyser with recent history reported this month',
+        '⚠ Check' if missing else '✓ OK', C_RED_TEXT if missing else C_GREEN_PASS, FILL_ALT_ROW)
+    doc.add_paragraph()
+
+    _heading(doc, f'Departments — {report_month}')
+    cols = ['Department', 'Analysers', 'Operators', 'Tests', 'Errors', 'Error %', 'Performance', 'Flagged', 'Low volume']
+    tbl = doc.add_table(rows=1, cols=len(cols)); _add_borders(tbl)
+    for c, l in zip(tbl.rows[0].cells, cols):
+        _hdr_cell(c, l, FILL_BLUE_HDR, C_BLUE)
+    C = WD_ALIGN_PARAGRAPH.CENTER
+    for i, d in enumerate(depts):
+        fill = FILL_ALT_ROW if i % 2 else FILL_WHITE
+        pl, pc = get_perf_label(d['rate'])
+        r = tbl.add_row().cells
+        _data_cell(r[0], d['department'], fill, C_BLUE, bold=True, size=8)
+        _data_cell(r[1], str(len(d['analysers'])), fill, C_BLUE, size=8, align=C)
+        _data_cell(r[2], str(d['operators']), fill, C_BLUE, size=8, align=C)
+        _data_cell(r[3], f"{d['tests']:,}", fill, C_BLUE, size=8, align=C)
+        _data_cell(r[4], str(d['errors']), fill, C_BLUE, size=8, align=C)
+        _data_cell(r[5], f"{d['rate']:.1f}%", fill, pc, bold=True, size=8, align=C)
+        _data_cell(r[6], pl, fill, pc, size=8, align=C)
+        _data_cell(r[7], str(len(d['flagged'])) if d['flagged'] else '—', fill, C_RED_TEXT if d['flagged'] else C_GREEN_PASS, bold=bool(d['flagged']), size=8, align=C)
+        _data_cell(r[8], str(d['low']) if d['low'] else '—', fill, C_BLUE, size=8, align=C)
+    r = tbl.add_row().cells
+    _data_cell(r[0], 'Whole hospital', FILL_BLUE_HDR, C_BLUE, bold=True, size=8)
+    _data_cell(r[1], str(n_an), FILL_BLUE_HDR, C_BLUE, bold=True, size=8, align=C)
+    _data_cell(r[2], str(sum(d['operators'] for d in depts)), FILL_BLUE_HDR, C_BLUE, bold=True, size=8, align=C)
+    _data_cell(r[3], f'{tests:,}', FILL_BLUE_HDR, C_BLUE, bold=True, size=8, align=C)
+    _data_cell(r[4], str(errs), FILL_BLUE_HDR, C_BLUE, bold=True, size=8, align=C)
+    _data_cell(r[5], f'{rate:.1f}%', FILL_BLUE_HDR, lc, bold=True, size=8, align=C)
+    _data_cell(r[6], label, FILL_BLUE_HDR, lc, bold=True, size=8, align=C)
+    _data_cell(r[7], str(n_flag) if n_flag else '—', FILL_BLUE_HDR, C_RED_TEXT if n_flag else C_GREEN_PASS, bold=True, size=8, align=C)
+    _data_cell(r[8], str(n_low) if n_low else '—', FILL_BLUE_HDR, C_BLUE, bold=True, size=8, align=C)
+    _set_col_widths(tbl, [1900, 900, 950, 1000, 800, 850, 1400, 900, 1660])
+    doc.add_paragraph()
+
+    _heading(doc, f'Analysers — {report_month}')
+    cols = ['Department', 'Analyser', 'Tests', 'Errors', 'Error %', 'Performance']
+    tbl = doc.add_table(rows=1, cols=len(cols)); _add_borders(tbl)
+    for c, l in zip(tbl.rows[0].cells, cols):
+        _hdr_cell(c, l, FILL_BLUE_HDR, C_BLUE)
+    i = 0
+    for d in depts:
+        for a_ in d['analysers']:
+            fill = FILL_ALT_ROW if i % 2 else FILL_WHITE; i += 1
+            pl, pc = get_perf_label(a_['rate'])
+            r = tbl.add_row().cells
+            _data_cell(r[0], d['department'], fill, C_BLUE, size=8)
+            _data_cell(r[1], a_['analyzer'], fill, C_BLUE, size=8)
+            _data_cell(r[2], f"{a_['tests']:,}", fill, C_BLUE, size=8, align=C)
+            _data_cell(r[3], str(a_['errors']), fill, C_BLUE, size=8, align=C)
+            _data_cell(r[4], f"{a_['rate']:.1f}%", fill, pc, bold=True, size=8, align=C)
+            _data_cell(r[5], pl, fill, pc, size=8, align=C)
+    for m in missing:
+        fill = FILL_ALT_ROW if i % 2 else FILL_WHITE; i += 1
+        r = tbl.add_row().cells
+        _data_cell(r[0], m['department'], fill, C_RED_TEXT, size=8)
+        _data_cell(r[1], m['analyzer'], fill, C_RED_TEXT, size=8)
+        _data_cell(r[2], f"not seen (last {m['last']}: {m['tests']:,} tests)", fill, C_RED_TEXT, bold=True, size=8)
+        for k in (3, 4, 5):
+            _data_cell(r[k], '—', fill, C_RED_TEXT, size=8, align=C)
+    _set_col_widths(tbl, [2200, 2600, 1300, 1000, 1000, 2260])
+    p = doc.add_paragraph()
+    _run(p, f'Flagged: over {FLAG_PCT:.0f}% error with more than {MIN_TESTS} tests in the month. '
+            f'Low volume: {MIN_TESTS} tests or fewer, not assessed. Named operators are in each department report.',
+         size=8, color=C_GREY_TEXT)
+    doc.save(out_path)
+    _patch_white_background(out_path)
+    return True
+
 def safe_fn(name):
     return re.sub(r'[^\w\s\-]', '', str(name)).strip().replace(' ', '_')
 
@@ -1356,6 +1578,19 @@ def run_generation(excel_path, output_dir, report_month, report_month_num, repor
                                           f"{traceback.format_exc(limit=2)}")
             progress['done'] += 1
 
+        # ── Hospital summaries: one page per hospital touched by this run,
+        #    covering every department in the export for that hospital ──
+        progress['current'] = 'Hospital summaries…'
+        for hosp in sorted({h for h, _ in units}):
+            try:
+                hdir = os.path.join(output_dir, safe_fn(hosp)); os.makedirs(hdir, exist_ok=True)
+                out_path = os.path.join(hdir, f"ABL_{safe_fn(hosp)}_Hospital_Summary_{report_month.replace(' ', '')}.docx")
+                if _write_hospital_summary(hosp, df, history, report_month, report_month_num, report_year, out_path):
+                    progress['reports'] += 1
+            except Exception:
+                import traceback
+                progress['errors'].append(f"Hospital summary {hosp}: {traceback.format_exc(limit=2)}")
+
         _save_json(HISTORY_PATH,  history)
         _save_json(OP_HIST_PATH,  op_history)
 
@@ -1416,9 +1651,36 @@ def preview():
         except OSError:
             pass
 
+@app.route('/lock_status')
+def lock_status():
+    return jsonify({'initialized': _encryption_initialized(), 'unlocked': _unlocked()})
+
+@app.route('/unlock', methods=['POST'])
+def unlock():
+    if not _same_origin(request):
+        abort(403)
+    pw = (request.form.get('password') or '').strip()
+    if not pw:
+        return jsonify({'ok': False, 'error': 'Enter a password.'})
+    if not _encryption_initialized():
+        if len(pw) < 8:
+            return jsonify({'ok': False, 'error': 'Use at least 8 characters.'})
+        if pw != (request.form.get('confirm') or '').strip():
+            return jsonify({'ok': False, 'error': 'Passwords do not match.'})
+        _set_history_password(pw)
+        _audit_event('history-encryption', result='enabled, files encrypted')
+        return jsonify({'ok': True})
+    if _try_unlock(pw):
+        _audit_event('history-unlock', result='success')
+        return jsonify({'ok': True})
+    _audit_event('history-unlock', result='FAILED attempt')
+    return jsonify({'ok': False, 'error': 'Incorrect password.'})
+
 @app.route('/generate', methods=['POST'])
 def generate():
     global progress
+    if _encryption_initialized() and not _unlocked():
+        return jsonify({'error': 'History is locked — enter the password first.'}), 403
     if not _same_origin(request):
         abort(403)
     if 'file' not in request.files:
