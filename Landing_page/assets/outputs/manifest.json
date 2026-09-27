@@ -57,5 +57,27 @@
       "cairns_p1.png"
     ],
     "total_pages": 1
+  },
+  {
+    "key": "abl_dept",
+    "title": "ABL department report \u2014 Townsville ED, all analysers and operators",
+    "doc": "ABL_ED_August2026.docx",
+    "pages": [
+      "abl_dept_p1.png",
+      "abl_dept_p2.png",
+      "abl_dept_p3.png",
+      "abl_dept_p4.png",
+      "abl_dept_p5.png"
+    ],
+    "total_pages": 5
+  },
+  {
+    "key": "abl_hosp",
+    "title": "ABL Hospital Summary \u2014 every department on one page",
+    "doc": "ABL_Townsville_Hospital_Summary_August2026.docx",
+    "pages": [
+      "abl_hosp_p1.png"
+    ],
+    "total_pages": 1
   }
 ]
