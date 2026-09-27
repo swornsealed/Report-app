@@ -1,13 +1,14 @@
 [
   {
-    "key": "ward",
-    "title": "Ward report \u2014 one analyser, one ward",
-    "doc": "i-STAT_Townsville_OT_307545_August2026.docx",
+    "key": "cth",
+    "title": "Hospital report \u2014 Charters Towers, all analysers",
+    "doc": "i-STAT_Charters_Towers_August2026.docx",
     "pages": [
-      "ward_p1.png",
-      "ward_p2.png"
+      "cth_p1.png",
+      "cth_p2.png",
+      "cth_p3.png"
     ],
-    "total_pages": 2
+    "total_pages": 5
   },
   {
     "key": "site",
@@ -37,14 +38,14 @@
     "total_pages": 4
   },
   {
-    "key": "hospital",
-    "title": "Hospital report \u2014 a smaller site, all analysers together",
-    "doc": "i-STAT_Ayr_August2026.docx",
+    "key": "ward",
+    "title": "Ward report \u2014 one analyser, one ward (large sites)",
+    "doc": "i-STAT_Townsville_OT_307545_August2026.docx",
     "pages": [
-      "hospital_p1.png",
-      "hospital_p2.png"
+      "ward_p1.png",
+      "ward_p2.png"
     ],
-    "total_pages": 5
+    "total_pages": 2
   },
   {
     "key": "cairns",
