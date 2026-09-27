@@ -1695,6 +1695,10 @@ def generate_report(hospital, df_use, sim_counts, ceramic_counts, df_err,
                 continue
             did     = _extract_did(dev) or dev
             entries = _merge_volume_backfill(key, entries)
+            # never chart months after the report month (re-running an older
+            # month must not show what came later)
+            entries = [e for e in entries
+                       if (int(e['year']), int(e['month'])) <= (int(report_year), int(report_month_num))]
             chart   = _plot_error_trend(entries, did)
             if chart:
                 p = doc.add_paragraph()
@@ -2135,8 +2139,7 @@ def generate_report(hospital, df_use, sim_counts, ceramic_counts, df_err,
                                        report_year, report_month_num, cur_counts)
             et_entries   = error_type_history.get(et_key, [])
             prior_months = [e for e in et_entries
-                            if not (e['year'] == int(report_year)
-                                    and e['month'] == int(report_month_num))]
+                            if (int(e['year']), int(e['month'])) < (int(report_year), int(report_month_num))]
             prev_top = prior_months[-1]['top_error'] if prior_months else None
         else:
             et_entries = []
@@ -2201,7 +2204,9 @@ def generate_report(hospital, df_use, sim_counts, ceramic_counts, df_err,
                 _run(p_exp, entry['explanation'], size=9, color=C_GREY_TEXT)
 
         # ── Month-to-month top error trend (last 12 months) ─────────────
-        et_entries = sorted(et_entries, key=lambda e: (int(e['year']), int(e['month'])))[-CHART_MONTHS:]
+        et_entries = sorted((e for e in et_entries
+                             if (int(e['year']), int(e['month'])) <= (int(report_year), int(report_month_num))),
+                            key=lambda e: (int(e['year']), int(e['month'])))[-CHART_MONTHS:]
         if len(et_entries) > 1:
             doc.add_paragraph()
             ph2 = doc.add_paragraph()
