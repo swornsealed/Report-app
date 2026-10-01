@@ -17,6 +17,7 @@ Security hardening (PSPF / ISM / IS18 / APP):
   - Audit log: timestamp, OS user, action, period, scope
   - Explicit 127.0.0.1 loopback bind (never exposed on network)
 """
+import math
 import os, re, sys, threading, subprocess, platform, shutil, json, io, tempfile, getpass, logging
 from datetime import datetime
 
@@ -789,11 +790,47 @@ def _save_history(history):
     except Exception:
         pass
 
+# ── Cartridge usage ───────────────────────────────────────────────────────────
+# The cart sheet carries one column per cartridge type for patient tests
+# ('Pat CHEM8', 'Pat CG4', ...) and for QC ('QC CHEM8', 'QCACT K', ...). They
+# count successful cartridges; failed cartridges are in 'FAILED' with no type.
+CARTRIDGE_ORDER = ['CHEM8', 'CG8', 'CG4', 'G', 'CREA', 'PT', 'ACT K', 'CTNI', 'HS TNI', 'BNP', 'BHCG']
+CARTRIDGE_LABELS = {'CHEM8': 'CHEM8', 'CG8': 'CG8', 'CG4': 'CG4', 'G': 'G', 'CREA': 'Crea', 'PT': 'PT/INR',
+                    'ACT K': 'ACT Kaolin', 'CTNI': 'cTnI', 'HS TNI': 'hs-TnI', 'BNP': 'BNP', 'BHCG': 'β-hCG'}
+ORDER_MARGIN = 0.15      # suggested monthly stock = average monthly use + this margin
+
+def _cartridge_columns(cols):
+    """{column name: ('pat'|'qc', TYPE)} for every cartridge-type column present."""
+    out = {}
+    for c in cols:
+        m = re.match(r'^\s*(pat|qc)\s*(.+?)\s*$', str(c), re.I)
+        if m and str(c).strip().lower() not in ('pats', 'qc'):
+            kind = m.group(1).lower(); typ = re.sub(r'\s+', ' ', m.group(2)).strip().upper()
+            if typ in CARTRIDGE_LABELS:
+                out[c] = (kind, typ)
+    return out
+
+def _cartridge_counts(rows):
+    """Sum cartridge-type counts over usage rows -> {TYPE: [patient, qc]} plus 'FAILED': [n, 0]."""
+    out = {}
+    if rows is None or len(rows) == 0:
+        return out
+    cols = _cartridge_columns(rows.columns)
+    for c, (kind, typ) in cols.items():
+        n = int(sum(_safe_int(v) for v in rows[c]))
+        if n:
+            out.setdefault(typ, [0, 0])[0 if kind == 'pat' else 1] += n
+    if 'FAILED' in rows.columns:
+        f = int(sum(_safe_int(v) for v in rows['FAILED']))
+        if f:
+            out['FAILED'] = [f, 0]
+    return out
+
 def _history_key(hospital, device):
     return f"{hospital}|{device}"
 
 def _update_history(history, hospital, device, year, month_num, error_rate,
-                    carts=0, types=None):
+                    carts=0, types=None, cartridges=None):
     key = _history_key(hospital, device)
     entries = [e for e in history.get(key, [])
                if not (e['year'] == int(year) and e['month'] == int(month_num))]
@@ -802,6 +839,8 @@ def _update_history(history, hospital, device, year, month_num, error_rate,
     if carts:
         entry['carts'] = int(carts)                       # cartridges run
         entry['types'] = {c: int(n) for c, n in (types or {}).items() if n}
+    if cartridges:
+        entry['cartridges'] = {k: [int(v[0]), int(v[1])] for k, v in cartridges.items()}
     entries.append(entry)
     entries.sort(key=lambda e: (e['year'], e['month']))
     history[key] = entries[-24:]   # keep rolling 24 months
@@ -2247,6 +2286,76 @@ def generate_report(hospital, df_use, sim_counts, ceramic_counts, df_err,
              bold=True, size=12, color=C_GREEN_PASS)
 
 
+    # ═══════════════════════════════════════════════════════════════
+    #  CARTRIDGE USAGE — this month by type, and a monthly average for ordering
+    # ═══════════════════════════════════════════════════════════════
+    try:
+        _cur = _cartridge_counts(hosp_use)
+        _hist_months = {}                       # (y, m) -> {TYPE: total}
+        _rep_ym = (int(report_year), int(report_month_num))
+        for _dev in (hosp_use['Device Name'].dropna().unique() if 'Device Name' in hosp_use.columns else []):
+            for _e in (history or {}).get(_history_key(hospital, str(_dev)), []):
+                _ym = (int(_e['year']), int(_e['month']))
+                if _ym > _rep_ym or not _e.get('cartridges'):
+                    continue
+                _bucket = _hist_months.setdefault(_ym, {})
+                for _t, _pq in _e['cartridges'].items():
+                    _bucket[_t] = _bucket.get(_t, 0) + int(_pq[0]) + int(_pq[1])
+        _hist_months[_rep_ym] = {t: v[0] + v[1] for t, v in _cur.items()}   # this month from the export
+        _months = sorted(_hist_months)[-CHART_MONTHS:]
+        _n = len(_months)
+        _types = [t for t in CARTRIDGE_ORDER if any(_hist_months[m].get(t) for m in _months) or t in _cur]
+        if _cur or _types:
+            doc.add_paragraph()
+            _heading(doc, f'Cartridge Usage — {report_month}').paragraph_format.keep_with_next = True
+            _ct = doc.add_table(rows=1, cols=7)
+            _add_borders(_ct)
+            for _c, _l in zip(_ct.rows[0].cells, ['Cartridge', 'Patient', 'QC', 'This month', f'Avg / month ({_n} mo)',
+                                                   'Peak month', f'Suggested stock / month (+{int(ORDER_MARGIN * 100)}%)']):
+                _hdr_cell(_c, _l, FILL_BLUE_HDR, C_BLUE)
+            _C = WD_ALIGN_PARAGRAPH.CENTER
+            _tot = [0, 0, 0, 0.0, 0, 0]
+            for _i, _t in enumerate(_types + (['FAILED'] if any(_hist_months[m].get('FAILED') for m in _months) else [])):
+                _fill = FILL_ALT_ROW if _i % 2 else FILL_WHITE
+                _pq = _cur.get(_t, [0, 0]); _this = _pq[0] + _pq[1]
+                _series = [_hist_months[m].get(_t, 0) for m in _months]
+                _avg = sum(_series) / _n if _n else 0.0; _peak = max(_series) if _series else 0
+                _sugg = int(math.ceil(_avg * (1 + ORDER_MARGIN))) if _t != 'FAILED' else 0
+                _r = _ct.add_row().cells
+                if _t == 'FAILED':
+                    _data_cell(_r[0], 'Failed cartridges (type not recorded)', _fill, C_RED_FAIL, size=8)
+                    _data_cell(_r[1], str(_this), _fill, C_RED_FAIL, size=8, align=_C)
+                    _data_cell(_r[2], '—', _fill, C_RED_FAIL, size=8, align=_C)
+                else:
+                    _data_cell(_r[0], CARTRIDGE_LABELS.get(_t, _t), _fill, C_BLUE, bold=True, size=8)
+                    _data_cell(_r[1], str(_pq[0]), _fill, C_BLUE, size=8, align=_C)
+                    _data_cell(_r[2], str(_pq[1]), _fill, C_BLUE, size=8, align=_C)
+                _col = C_RED_FAIL if _t == 'FAILED' else C_BLUE
+                _data_cell(_r[3], str(_this), _fill, _col, bold=True, size=8, align=_C)
+                _data_cell(_r[4], f'{_avg:.1f}', _fill, _col, size=8, align=_C)
+                _data_cell(_r[5], str(_peak), _fill, _col, size=8, align=_C)
+                _data_cell(_r[6], str(_sugg) if _sugg else '—', _fill, C_GREEN_PASS if _sugg else _col, bold=True, size=8, align=_C)
+                _tot[0] += _pq[0]; _tot[1] += _pq[1]; _tot[2] += _this; _tot[3] += _avg; _tot[4] += _peak; _tot[5] += _sugg
+            _r = _ct.add_row().cells
+            _data_cell(_r[0], 'All cartridges', FILL_BLUE_HDR, C_BLUE, bold=True, size=8)
+            for _k, _v in zip(range(1, 7), [str(_tot[0]), str(_tot[1]), str(_tot[2]), f'{_tot[3]:.1f}', str(_tot[4]), str(_tot[5])]):
+                _data_cell(_r[_k], _v, FILL_BLUE_HDR, C_BLUE, bold=True, size=8, align=_C)
+            _set_col_widths(_ct, [2460, 1000, 900, 1150, 1500, 1200, 2150])
+            _cell_padding(_ct, top=40, bottom=40)
+            # keep heading, table and note on one page together
+            for _row in _ct.rows:
+                for _cell in _row.cells:
+                    for _cp in _cell.paragraphs:
+                        _cp.paragraph_format.keep_with_next = True
+                        _cp.paragraph_format.keep_together = True
+            _np = doc.add_paragraph()
+            _run(_np, (f'Patient and QC are successful cartridges by type this month; failed cartridges are consumed too but the export '
+                       f'does not record their type. Average and peak use the last {_n} month{"s" if _n != 1 else ""} on record for '
+                       f'{"this analyser" if title_label else "these analysers"}; suggested stock adds {int(ORDER_MARGIN * 100)}% to the average '
+                       f'as an ordering guide.'), size=8, color=C_GREY_TEXT)
+    except Exception as _exc:
+        print(f'[CARTRIDGES] section skipped for {hospital}: {_exc}')
+
     doc.add_paragraph()
     p = doc.add_paragraph()
     _run(p, 'Online training resources: ', bold=True, size=9)
@@ -2641,7 +2750,8 @@ def run_generation(excel_path, output_dir, report_month, report_month_num, repor
                 history = _update_history(history, str(h), str(d),
                                           report_year, report_month_num, er,
                                           carts=_safe_int(row.get('Total Carts')),
-                                          types=dev_type_counts.get(_did, {}) if _did else {})
+                                          types=dev_type_counts.get(_did, {}) if _did else {},
+                                          cartridges=_cartridge_counts(df_use.loc[[row.name]]))
 
         hospitals = sorted(h for h in df_use['Hospital Name'].dropna().unique()
                            if str(h).upper() not in ('ALL', 'TOTAL', ''))
