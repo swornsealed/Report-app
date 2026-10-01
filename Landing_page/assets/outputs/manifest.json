@@ -8,9 +8,10 @@
       "cth_p2.png",
       "cth_p3.png",
       "cth_p4.png",
-      "cth_p5.png"
+      "cth_p5.png",
+      "cth_p6.png"
     ],
-    "total_pages": 5
+    "total_pages": 6
   },
   {
     "key": "site",
@@ -47,7 +48,7 @@
       "ward_p1.png",
       "ward_p2.png"
     ],
-    "total_pages": 2
+    "total_pages": 3
   },
   {
     "key": "cairns",
