@@ -24,12 +24,23 @@
   },
   {
     "key": "area",
-    "title": "Area Summary \u2014 every hospital in the HHS",
+    "title": "Area Summary \u2014 every hospital in the HHS, with cartridge usage",
     "doc": "i-STAT_Townsv_Area_Summary_August2026.docx",
     "pages": [
-      "area_p1.png"
+      "area_p1.png",
+      "area_p2.png"
     ],
-    "total_pages": 1
+    "total_pages": 2
+  },
+  {
+    "key": "stock",
+    "title": "Cartridge Stock \u2014 for the HHS stores team, every site by cartridge type",
+    "doc": "i-STAT_Townsv_Cartridge_Stock_August2026.docx",
+    "pages": [
+      "stock_p1.png",
+      "stock_p2.png"
+    ],
+    "total_pages": 2
   },
   {
     "key": "dormant",

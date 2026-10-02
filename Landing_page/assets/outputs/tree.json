@@ -8,6 +8,7 @@
    "i-STAT_Atherton_August2026.docx",
    "i-STAT_Babinda_August2026.docx",
    "i-STAT_CA_Area_Summary_August2026.docx",
+   "i-STAT_CA_Cartridge_Stock_August2026.docx",
    "i-STAT_Cairns_Birthsuite_426403_August2026.docx",
    "i-STAT_Cairns_CCU_2_428305_August2026.docx",
    "i-STAT_Cairns_CCU_425508_August2026.docx",
@@ -51,6 +52,7 @@
    "i-STAT_Biloela_August2026.docx",
    "i-STAT_Blackwater_August2026.docx",
    "i-STAT_CQLD_Area_Summary_August2026.docx",
+   "i-STAT_CQLD_Cartridge_Stock_August2026.docx",
    "i-STAT_Emerald_AE_390721_August2026.docx",
    "i-STAT_Emerald_Gem_Fields_423860_August2026.docx",
    "i-STAT_Emerald_Lab_2_413635_August2026.docx",
@@ -89,6 +91,7 @@
    "i-STAT_Blackall_GP_August2026.docx",
    "i-STAT_Boulia_August2026.docx",
    "i-STAT_CWest_Area_Summary_August2026.docx",
+   "i-STAT_CWest_Cartridge_Stock_August2026.docx",
    "i-STAT_Isisford_August2026.docx",
    "i-STAT_Jericho_August2026.docx",
    "i-STAT_Jundah_August2026.docx",
@@ -100,6 +103,7 @@
   ],
   "ChildQLD": [
    "i-STAT_ChildQLD_Area_Summary_August2026.docx",
+   "i-STAT_ChildQLD_Cartridge_Stock_August2026.docx",
    "i-STAT_LCCH_4A_ICU_335521_August2026.docx",
    "i-STAT_LCCH_9A1_451978_August2026.docx",
    "i-STAT_LCCH_9B_366412_August2026.docx",
@@ -121,6 +125,7 @@
    "i-STAT_Cherbourg_August2026.docx",
    "i-STAT_Chinchilla_August2026.docx",
    "i-STAT_DaDo_Area_Summary_August2026.docx",
+   "i-STAT_DaDo_Cartridge_Stock_August2026.docx",
    "i-STAT_Dalby_August2026.docx",
    "i-STAT_Goondiwindi_August2026.docx",
    "i-STAT_Inglewood_August2026.docx",
@@ -166,6 +171,7 @@
   ],
   "GoCo": [
    "i-STAT_GoCo_Area_Summary_August2026.docx",
+   "i-STAT_GoCo_Cartridge_Stock_August2026.docx",
    "i-STAT_Gold_Coast_GCoast_Dialysis_426401_August2026.docx",
    "i-STAT_Gold_Coast_GCoast_ED_2_426422_August2026.docx",
    "i-STAT_Gold_Coast_GCoast_ED_426421_August2026.docx",
@@ -200,6 +206,7 @@
    "i-STAT_Mackay_CAU_402023_August2026.docx",
    "i-STAT_Mackay_CaRS_2_425512_August2026.docx",
    "i-STAT_Mackay_CaRS_445123_August2026.docx",
+   "i-STAT_Mackay_Cartridge_Stock_August2026.docx",
    "i-STAT_Mackay_Lab_435585_August2026.docx",
    "i-STAT_Mackay_MAT_429944_August2026.docx",
    "i-STAT_Mackay_MI_425513_August2026.docx",
@@ -227,6 +234,7 @@
    "i-STAT_Eventide_August2026.docx",
    "i-STAT_Kilcoy_August2026.docx",
    "i-STAT_MeNo_Area_Summary_August2026.docx",
+   "i-STAT_MeNo_Cartridge_Stock_August2026.docx",
    "i-STAT_Prince_Charles_Kallangur_2_MIIC_413642_August2026.docx",
    "i-STAT_Prince_Charles_Kallangur_RDU_413627_August2026.docx",
    "i-STAT_Prince_Charles_Kallangur_RDU_417417_August2026.docx",
@@ -290,6 +298,7 @@
    "i-STAT_Logan_SCN_440506_August2026.docx",
    "i-STAT_Logan_Site_Overview_August2026.docx",
    "i-STAT_MeSo_Area_Summary_August2026.docx",
+   "i-STAT_MeSo_Cartridge_Stock_August2026.docx",
    "i-STAT_Princess_Alexandra_Arthur_Gorrie_390861_August2026.docx",
    "i-STAT_Princess_Alexandra_Arthur_Gorrie_454512_August2026.docx",
    "i-STAT_Princess_Alexandra_CAREPACT_2_413572_August2026.docx",
@@ -335,6 +344,7 @@
    "i-STAT_Mount_Isa_Paeds_388157_August2026.docx",
    "i-STAT_Mount_Isa_Site_Overview_August2026.docx",
    "i-STAT_NoWe_Area_Summary_August2026.docx",
+   "i-STAT_NoWe_Cartridge_Stock_August2026.docx",
    "i-STAT_Normanton_August2026.docx"
   ],
   "SoWe": [
@@ -350,6 +360,7 @@
    "i-STAT_Quilpie_August2026.docx",
    "i-STAT_Roma_August2026.docx",
    "i-STAT_SoWe_Area_Summary_August2026.docx",
+   "i-STAT_SoWe_Cartridge_Stock_August2026.docx",
    "i-STAT_St_George_August2026.docx",
    "i-STAT_Surat_August2026.docx",
    "i-STAT_Thargomindah_August2026.docx",
@@ -380,7 +391,8 @@
    "i-STAT_SCUH_SC_HITH3_443519_August2026.docx",
    "i-STAT_SCUH_SC_HITH4_443435_August2026.docx",
    "i-STAT_SCUH_Site_Overview_August2026.docx",
-   "i-STAT_SuCo_Area_Summary_August2026.docx"
+   "i-STAT_SuCo_Area_Summary_August2026.docx",
+   "i-STAT_SuCo_Cartridge_Stock_August2026.docx"
   ],
   "ToCa": [
    "i-STAT_Aurukun_August2026.docx",
@@ -402,6 +414,7 @@
    "i-STAT_Thursday_Island_Thursday_ISL_NS_454027_August2026.docx",
    "i-STAT_Thursday_Island_Thursday_Isl_435220_August2026.docx",
    "i-STAT_ToCa_Area_Summary_August2026.docx",
+   "i-STAT_ToCa_Cartridge_Stock_August2026.docx",
    "i-STAT_Torres_Strait_August2026.docx",
    "i-STAT_Weipa_August2026.docx",
    "i-STAT_Wujal_Wujal_August2026.docx"
@@ -416,6 +429,7 @@
    "i-STAT_Palm_Isl_August2026.docx",
    "i-STAT_Richmond_August2026.docx",
    "i-STAT_Townsv_Area_Summary_August2026.docx",
+   "i-STAT_Townsv_Cartridge_Stock_August2026.docx",
    "i-STAT_Townsville_AAU_425595_August2026.docx",
    "i-STAT_Townsville_ACA_410089_August2026.docx",
    "i-STAT_Townsville_AMHU_402367_August2026.docx",
@@ -467,7 +481,8 @@
    "i-STAT_Ipswich_SCN_428599_August2026.docx",
    "i-STAT_Ipswich_Site_Overview_August2026.docx",
    "i-STAT_Laidley_August2026.docx",
-   "i-STAT_WeMo_Area_Summary_August2026.docx"
+   "i-STAT_WeMo_Area_Summary_August2026.docx",
+   "i-STAT_WeMo_Cartridge_Stock_August2026.docx"
   ],
   "WiBa": [
    "i-STAT_Biggenden_August2026.docx",
@@ -507,7 +522,8 @@
    "i-STAT_Monto_August2026.docx",
    "i-STAT_Mount_Perry_August2026.docx",
    "i-STAT_Mundubbera_August2026.docx",
-   "i-STAT_WiBa_Area_Summary_August2026.docx"
+   "i-STAT_WiBa_Area_Summary_August2026.docx",
+   "i-STAT_WiBa_Cartridge_Stock_August2026.docx"
   ]
  }
 }

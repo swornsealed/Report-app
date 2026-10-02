@@ -797,7 +797,11 @@ def _save_history(history):
 CARTRIDGE_ORDER = ['CHEM8', 'CG8', 'CG4', 'G', 'CREA', 'PT', 'ACT K', 'CTNI', 'HS TNI', 'BNP', 'BHCG']
 CARTRIDGE_LABELS = {'CHEM8': 'CHEM8', 'CG8': 'CG8', 'CG4': 'CG4', 'G': 'G', 'CREA': 'Crea', 'PT': 'PT/INR',
                     'ACT K': 'ACT Kaolin', 'CTNI': 'cTnI', 'HS TNI': 'hs-TnI', 'BNP': 'BNP', 'BHCG': 'β-hCG'}
-ORDER_MARGIN = 0.15      # suggested monthly stock = average monthly use + this margin
+ORDER_MARGIN = 0.15      # suggested order = average use for the period + this margin
+# Abbott pack sizes (cartridges per box): every i-STAT cartridge PQ orders comes 25 to a box
+# (CHEM8+ 09P31-25, CG8+ 03P88-25, CG4+ 03P85-25, G 03P79-25, Crea 03P84-25, PT/INR 03P89-24,
+# Kaolin ACT 03P87-25, cTnI 03P90-25, hs-TnI 06P53-25, BNP 03P93-25, Total β-hCG 05P58-25).
+CARTRIDGE_BOX = {t: 25 for t in CARTRIDGE_ORDER}
 
 def _cartridge_columns(cols):
     """{column name: ('pat'|'qc', TYPE)} for every cartridge-type column present."""
@@ -825,6 +829,162 @@ def _cartridge_counts(rows):
         if f:
             out['FAILED'] = [f, 0]
     return out
+
+WEEKS_PER_MONTH = 52 / 12            # ordering periods per month
+FORTNIGHTS_PER_MONTH = 26 / 12
+
+def _cartridge_series(hospital, hosp_df, history, rep_ym):
+    """Cartridge use by type for a hospital (or one analyser's rows): this month from the export plus the
+    months on record for its analysers -> {'cur': {TYPE: [pat, qc]}, 'hist': {(y, m): {TYPE: total}}}."""
+    cur = _cartridge_counts(hosp_df)
+    hist = {}
+    devs = hosp_df['Device Name'].dropna().unique() if (hosp_df is not None and 'Device Name' in hosp_df.columns) else []
+    for dev in devs:
+        for e in (history or {}).get(_history_key(hospital, str(dev)), []):
+            ym = (int(e['year']), int(e['month']))
+            if ym > rep_ym or not e.get('cartridges'):
+                continue
+            b = hist.setdefault(ym, {})
+            for t, pq in e['cartridges'].items():
+                b[t] = b.get(t, 0) + int(pq[0]) + int(pq[1])
+    hist[rep_ym] = {t: v[0] + v[1] for t, v in cur.items()}
+    return {'cur': cur, 'hist': hist}
+
+def _cartridge_merge(series_list):
+    """Add several hospitals' series together (an HHS)."""
+    cur, hist = {}, {}
+    for sr in series_list:
+        for t, pq in sr['cur'].items():
+            c = cur.setdefault(t, [0, 0]); c[0] += pq[0]; c[1] += pq[1]
+        for ym, b in sr['hist'].items():
+            hb = hist.setdefault(ym, {})
+            for t, n in b.items():
+                hb[t] = hb.get(t, 0) + n
+    return {'cur': cur, 'hist': hist}
+
+def _cartridge_stats(series):
+    """Per-type rows for the ordering table -> (rows, months_on_record). Rows: dicts with
+    type, label, pat, this, avg, peak, weekly, fortnightly; the FAILED row (if any) comes last."""
+    cur, hist = series['cur'], series['hist']
+    months = sorted(hist)[-CHART_MONTHS:]
+    n = len(months)
+    types = [t for t in CARTRIDGE_ORDER if any(hist[m].get(t) for m in months) or t in cur]
+    if any(hist[m].get('FAILED') for m in months):
+        types.append('FAILED')
+    rows = []
+    for t in types:
+        pq = cur.get(t, [0, 0]); this = pq[0] + pq[1]
+        ser = [hist[m].get(t, 0) for m in months]
+        avg = sum(ser) / n if n else 0.0
+        failed = t == 'FAILED'
+        box = CARTRIDGE_BOX.get(t, 25)
+        weekly = 0 if failed else int(math.ceil(avg / WEEKS_PER_MONTH * (1 + ORDER_MARGIN)))
+        fortnightly = 0 if failed else int(math.ceil(avg / FORTNIGHTS_PER_MONTH * (1 + ORDER_MARGIN)))
+        rows.append({'type': t, 'label': 'Failed cartridges (type not recorded)' if failed else CARTRIDGE_LABELS.get(t, t),
+                     'pat': pq[0], 'this': this, 'avg': avg, 'peak': max(ser) if ser else 0, 'box': box,
+                     'weekly': weekly, 'fortnightly': fortnightly,
+                     'weekly_boxes': int(math.ceil(weekly / box)), 'fortnightly_boxes': int(math.ceil(fortnightly / box))})
+    return rows, n
+
+def _whole(v):
+    """Whole cartridges for display: nothing is shown as '·', a fraction below one as '<1'."""
+    if not v:
+        return '·'
+    r = int(round(v))
+    return str(r) if r else '<1'
+
+def _boxes_text(boxes, need):
+    return f'{boxes} box{"" if boxes == 1 else "es"} (need {need})' if boxes else '—'
+
+def _cartridge_table(doc, rows, n, scope, keep=False):
+    """The cartridge ordering table: type, patient tests, total used, average, peak, box size, weekly and
+    fortnightly orders in boxes (with the cartridges needed)."""
+    C = WD_ALIGN_PARAGRAPH.CENTER
+    pct = int(ORDER_MARGIN * 100)
+    tbl = doc.add_table(rows=1, cols=8)
+    _add_borders(tbl)
+    for c, l in zip(tbl.rows[0].cells, ['Cartridge', 'Patient tests', 'Total used', f'Avg / month ({n} mo)',
+                                        'Peak month', 'Per box', f'Weekly order (+{pct}%)', f'Fortnightly order (+{pct}%)']):
+        _hdr_cell(c, l, FILL_BLUE_HDR, C_BLUE)
+    tot = [0, 0, 0.0, 0, 0, 0, 0, 0]
+    for i, r in enumerate(rows):
+        fill = FILL_ALT_ROW if i % 2 else FILL_WHITE
+        failed = r['type'] == 'FAILED'
+        col = C_RED_FAIL if failed else C_BLUE
+        c = tbl.add_row().cells
+        _data_cell(c[0], r['label'], fill, col, bold=not failed, size=8)
+        _data_cell(c[1], '—' if failed else str(r['pat']), fill, col, size=8, align=C)
+        _data_cell(c[2], str(r['this']), fill, col, bold=True, size=8, align=C)
+        _data_cell(c[3], _whole(r['avg']), fill, col, size=8, align=C)
+        _data_cell(c[4], str(r['peak']), fill, col, size=8, align=C)
+        _data_cell(c[5], '—' if failed else str(r['box']), fill, col, size=8, align=C)
+        _data_cell(c[6], _boxes_text(r['weekly_boxes'], r['weekly']), fill, C_GREEN_PASS if r['weekly_boxes'] else col, bold=True, size=8, align=C)
+        _data_cell(c[7], _boxes_text(r['fortnightly_boxes'], r['fortnightly']), fill, C_GREEN_PASS if r['fortnightly_boxes'] else col, bold=True, size=8, align=C)
+        tot[0] += r['pat']; tot[1] += r['this']; tot[2] += r['avg']; tot[3] += r['peak']
+        tot[4] += r['weekly_boxes']; tot[5] += r['weekly']; tot[6] += r['fortnightly_boxes']; tot[7] += r['fortnightly']
+    c = tbl.add_row().cells
+    _data_cell(c[0], 'All cartridges', FILL_BLUE_HDR, C_BLUE, bold=True, size=8)
+    for k, v in zip(range(1, 8), [str(tot[0]), str(tot[1]), _whole(tot[2]), str(tot[3]), '',
+                                  _boxes_text(tot[4], tot[5]), _boxes_text(tot[6], tot[7])]):
+        _data_cell(c[k], v, FILL_BLUE_HDR, C_BLUE, bold=True, size=8, align=C)
+    _set_col_widths(tbl, [2050, 950, 900, 1150, 900, 650, 1880, 1880])
+    _cell_padding(tbl, top=40, bottom=40)
+    if keep:                                    # heading, table and note on one page together
+        for row in tbl.rows:
+            for cell in row.cells:
+                for cp in cell.paragraphs:
+                    cp.paragraph_format.keep_with_next = True
+                    cp.paragraph_format.keep_together = True
+    np_ = doc.add_paragraph()
+    _run(np_, (f'Patient tests are successful patient cartridges by type this month; Total used also counts QC. Failed cartridges '
+               f'are consumed too but the export does not record their type. Average and peak use the last {n} month'
+               f'{"s" if n != 1 else ""} on record for {scope}. The order columns spread that average over 52 or 26 periods '
+               f'a year, add {pct}%, and round up to whole Abbott boxes (Per box = cartridges in a box); "need" is the cartridge '
+               f'count the boxes must cover. Sites with little storage can order to whichever period suits them.'),
+         size=8, color=C_GREY_TEXT)
+    return tbl
+
+def _site_matrix(doc, sites, types, field, fmt, total_label='All sites', months_col=False, box_hdr=False):
+    """Sites down, cartridge types across; sites = [(short, rows_by_type, n_months)]."""
+    C = WD_ALIGN_PARAGRAPH.CENTER
+    cols = (['Site'] + (['Months'] if months_col else [])
+            + [CARTRIDGE_LABELS.get(t, t) + (f'\n{CARTRIDGE_BOX.get(t, 25)}/box' if box_hdr else '') for t in types] + ['Total'])
+    tbl = doc.add_table(rows=1, cols=len(cols))
+    _add_borders(tbl)
+    for c, l in zip(tbl.rows[0].cells, cols):
+        _hdr_cell(c, l, FILL_BLUE_HDR, C_BLUE)
+    col_tot = {t: 0.0 for t in types}; grand = 0.0
+    for i, (short, by_type, n) in enumerate(sites):
+        fill = FILL_ALT_ROW if i % 2 else FILL_WHITE
+        c = tbl.add_row().cells
+        _data_cell(c[0], short, fill, C_BLUE, bold=True, size=7)
+        k = 1
+        if months_col:
+            _data_cell(c[k], str(n), fill, C_BLUE, size=7, align=C); k += 1
+        row_tot = 0.0
+        for t in types:
+            v = by_type.get(t, {}).get(field, 0)
+            _data_cell(c[k], fmt(v), fill, C_BLUE if v else C_GREY_TEXT, size=7, align=C)
+            col_tot[t] += v; row_tot += v; k += 1
+        _data_cell(c[k], fmt(row_tot), fill, C_BLUE, bold=True, size=7, align=C); grand += row_tot
+    c = tbl.add_row().cells
+    _data_cell(c[0], total_label, FILL_BLUE_HDR, C_BLUE, bold=True, size=7)
+    k = 1
+    if months_col:
+        _data_cell(c[k], '', FILL_BLUE_HDR, C_BLUE, size=7); k += 1
+    for t in types:
+        _data_cell(c[k], fmt(col_tot[t]), FILL_BLUE_HDR, C_BLUE, bold=True, size=7, align=C); k += 1
+    _data_cell(c[k], fmt(grand), FILL_BLUE_HDR, C_BLUE, bold=True, size=7, align=C)
+    fixed = 1700 + 800 + (700 if months_col else 0)
+    w = (10360 - fixed) // max(1, len(types))
+    _set_col_widths(tbl, [1700] + ([700] if months_col else []) + [w] * len(types) + [800])
+    _cell_padding(tbl, top=30, bottom=30, left=60, right=60)
+    for row in tbl.rows:                        # keep each site table on one page
+        for cell in row.cells:
+            for cp in cell.paragraphs:
+                cp.paragraph_format.keep_with_next = True
+                cp.paragraph_format.keep_together = True
+    return tbl
 
 def _history_key(hospital, device):
     return f"{hospital}|{device}"
@@ -2290,69 +2450,12 @@ def generate_report(hospital, df_use, sim_counts, ceramic_counts, df_err,
     #  CARTRIDGE USAGE — this month by type, and a monthly average for ordering
     # ═══════════════════════════════════════════════════════════════
     try:
-        _cur = _cartridge_counts(hosp_use)
-        _hist_months = {}                       # (y, m) -> {TYPE: total}
-        _rep_ym = (int(report_year), int(report_month_num))
-        for _dev in (hosp_use['Device Name'].dropna().unique() if 'Device Name' in hosp_use.columns else []):
-            for _e in (history or {}).get(_history_key(hospital, str(_dev)), []):
-                _ym = (int(_e['year']), int(_e['month']))
-                if _ym > _rep_ym or not _e.get('cartridges'):
-                    continue
-                _bucket = _hist_months.setdefault(_ym, {})
-                for _t, _pq in _e['cartridges'].items():
-                    _bucket[_t] = _bucket.get(_t, 0) + int(_pq[0]) + int(_pq[1])
-        _hist_months[_rep_ym] = {t: v[0] + v[1] for t, v in _cur.items()}   # this month from the export
-        _months = sorted(_hist_months)[-CHART_MONTHS:]
-        _n = len(_months)
-        _types = [t for t in CARTRIDGE_ORDER if any(_hist_months[m].get(t) for m in _months) or t in _cur]
-        if _cur or _types:
+        _series = _cartridge_series(hospital, hosp_use, history, (int(report_year), int(report_month_num)))
+        _rows, _n = _cartridge_stats(_series)
+        if _rows:
             doc.add_paragraph()
             _heading(doc, f'Cartridge Usage — {report_month}').paragraph_format.keep_with_next = True
-            _ct = doc.add_table(rows=1, cols=7)
-            _add_borders(_ct)
-            for _c, _l in zip(_ct.rows[0].cells, ['Cartridge', 'Patient', 'QC', 'This month', f'Avg / month ({_n} mo)',
-                                                   'Peak month', f'Suggested stock / month (+{int(ORDER_MARGIN * 100)}%)']):
-                _hdr_cell(_c, _l, FILL_BLUE_HDR, C_BLUE)
-            _C = WD_ALIGN_PARAGRAPH.CENTER
-            _tot = [0, 0, 0, 0.0, 0, 0]
-            for _i, _t in enumerate(_types + (['FAILED'] if any(_hist_months[m].get('FAILED') for m in _months) else [])):
-                _fill = FILL_ALT_ROW if _i % 2 else FILL_WHITE
-                _pq = _cur.get(_t, [0, 0]); _this = _pq[0] + _pq[1]
-                _series = [_hist_months[m].get(_t, 0) for m in _months]
-                _avg = sum(_series) / _n if _n else 0.0; _peak = max(_series) if _series else 0
-                _sugg = int(math.ceil(_avg * (1 + ORDER_MARGIN))) if _t != 'FAILED' else 0
-                _r = _ct.add_row().cells
-                if _t == 'FAILED':
-                    _data_cell(_r[0], 'Failed cartridges (type not recorded)', _fill, C_RED_FAIL, size=8)
-                    _data_cell(_r[1], str(_this), _fill, C_RED_FAIL, size=8, align=_C)
-                    _data_cell(_r[2], '—', _fill, C_RED_FAIL, size=8, align=_C)
-                else:
-                    _data_cell(_r[0], CARTRIDGE_LABELS.get(_t, _t), _fill, C_BLUE, bold=True, size=8)
-                    _data_cell(_r[1], str(_pq[0]), _fill, C_BLUE, size=8, align=_C)
-                    _data_cell(_r[2], str(_pq[1]), _fill, C_BLUE, size=8, align=_C)
-                _col = C_RED_FAIL if _t == 'FAILED' else C_BLUE
-                _data_cell(_r[3], str(_this), _fill, _col, bold=True, size=8, align=_C)
-                _data_cell(_r[4], f'{_avg:.1f}', _fill, _col, size=8, align=_C)
-                _data_cell(_r[5], str(_peak), _fill, _col, size=8, align=_C)
-                _data_cell(_r[6], str(_sugg) if _sugg else '—', _fill, C_GREEN_PASS if _sugg else _col, bold=True, size=8, align=_C)
-                _tot[0] += _pq[0]; _tot[1] += _pq[1]; _tot[2] += _this; _tot[3] += _avg; _tot[4] += _peak; _tot[5] += _sugg
-            _r = _ct.add_row().cells
-            _data_cell(_r[0], 'All cartridges', FILL_BLUE_HDR, C_BLUE, bold=True, size=8)
-            for _k, _v in zip(range(1, 7), [str(_tot[0]), str(_tot[1]), str(_tot[2]), f'{_tot[3]:.1f}', str(_tot[4]), str(_tot[5])]):
-                _data_cell(_r[_k], _v, FILL_BLUE_HDR, C_BLUE, bold=True, size=8, align=_C)
-            _set_col_widths(_ct, [2460, 1000, 900, 1150, 1500, 1200, 2150])
-            _cell_padding(_ct, top=40, bottom=40)
-            # keep heading, table and note on one page together
-            for _row in _ct.rows:
-                for _cell in _row.cells:
-                    for _cp in _cell.paragraphs:
-                        _cp.paragraph_format.keep_with_next = True
-                        _cp.paragraph_format.keep_together = True
-            _np = doc.add_paragraph()
-            _run(_np, (f'Patient and QC are successful cartridges by type this month; failed cartridges are consumed too but the export '
-                       f'does not record their type. Average and peak use the last {_n} month{"s" if _n != 1 else ""} on record for '
-                       f'{"this analyser" if title_label else "these analysers"}; suggested stock adds {int(ORDER_MARGIN * 100)}% to the average '
-                       f'as an ordering guide.'), size=8, color=C_GREY_TEXT)
+            _cartridge_table(doc, _rows, _n, 'this analyser' if title_label else 'these analysers', keep=True)
     except Exception as _exc:
         print(f'[CARTRIDGES] section skipped for {hospital}: {_exc}')
 
@@ -2552,7 +2655,7 @@ def _write_site_overview(short, rows, out_path, report_month):
     doc.save(out_path)
     _patch_white_background(out_path)
 
-def _write_area_summary(prefix, hrows, out_path, report_month):
+def _write_area_summary(prefix, hrows, out_path, report_month, cart=None):
     area = HHS_NAMES.get(prefix, prefix)
     doc  = _titled_doc('Area Summary', f'{area} – {report_month}')
     n_an  = sum(h['n'] for h in hrows)
@@ -2644,6 +2747,51 @@ def _write_area_summary(prefix, hrows, out_path, report_month):
             _data_cell(c[3], why, fill, C_RED_FAIL, bold=True, size=8)
         _set_col_widths(tbl, [2300, 3400, 1200, 3460])
         _cell_padding(tbl, top=40, bottom=40)
+
+    if cart:
+        _rows, _n = _cartridge_stats(cart)
+        if _rows:
+            doc.add_paragraph()
+            _heading(doc, f'Cartridge Usage — {area}, {report_month}').paragraph_format.keep_with_next = True
+            _cartridge_table(doc, _rows, _n, 'the whole area', keep=True)
+    doc.save(out_path)
+    _patch_white_background(out_path)
+
+
+def _write_stock_report(prefix, sites, out_path, report_month):
+    """Cartridge Stock report for the HHS stores team: area totals by type, then this month's use, the
+    monthly average and the suggested weekly and fortnightly dispatch for every site they supply.
+    sites = [(short, series)] sorted by site name."""
+    area = HHS_NAMES.get(prefix, prefix)
+    doc  = _titled_doc('Cartridge Stock', f'{area} – {report_month}')
+    pct  = int(ORDER_MARGIN * 100)
+    p = doc.add_paragraph()
+    _run(p, (f'For the stores team supplying i-STAT cartridges to the {len(sites)} sites in {area}. Figures come from the '
+             f'{report_month} middleware export and the months on record for each site; the dispatch columns are each '
+             f'site\u2019s monthly average spread over the ordering period plus {pct}%.'), size=9, color=C_GREY_TEXT)
+    merged = _cartridge_merge([sr for _, sr in sites])
+    rows, n = _cartridge_stats(merged)
+    _heading(doc, f'Area Totals by Cartridge — {report_month}')
+    _cartridge_table(doc, rows, n, 'the whole area')
+    types = [r['type'] for r in rows if r['type'] != 'FAILED']
+    per_site = []
+    for short, sr in sites:
+        srows, sn = _cartridge_stats(sr)
+        per_site.append((short, {r['type']: r for r in srows}, sn))
+    for title, field, months_col, box_hdr in [
+            (f'Used This Month by Site — {report_month}', 'this', False, False),
+            ('Average Monthly Use by Site (cartridges)', 'avg', True, False),
+            (f'Suggested Weekly Dispatch by Site (boxes, +{pct}%)', 'weekly_boxes', False, True),
+            (f'Suggested Fortnightly Dispatch by Site (boxes, +{pct}%)', 'fortnightly_boxes', False, True)]:
+        doc.add_paragraph()
+        _heading(doc, title).paragraph_format.keep_with_next = True
+        _site_matrix(doc, per_site, types, field, _whole, months_col=months_col, box_hdr=box_hdr)
+    p = doc.add_paragraph()
+    _run(p, ('Dispatch tables are in whole Abbott boxes (the box size is under each cartridge name); each site\u2019s figure is its '
+             'average use for the period plus {pct}%, rounded up to the next box. Months is the number of months on record '
+             'for the site (up to twelve); a site with few months on record has a less settled average. Failed cartridges are '
+             'not typed in the export and are not included in the site tables.').replace('{pct}', str(pct)),
+         size=8, color=C_GREY_TEXT)
     doc.save(out_path)
     _patch_white_background(out_path)
 
@@ -2905,12 +3053,23 @@ def run_generation(excel_path, output_dir, report_month, report_month_num, repor
                 _hrows = [_hospital_summary_row(_h, df_use, sim_counts, ceramic_by_device)
                           for _h in sorted(_area_members.get(_pre, []))]
                 _hrows = sorted((r for r in _hrows if r), key=lambda r: r['short'].lower())
-                if _hrows:
-                    _adir = os.path.join(output_dir, _pre)
+                _rep_ym = (int(report_year), int(report_month_num))
+                _sites = []
+                for _h in sorted(_area_members.get(_pre, []), key=lambda x: _folder_prefix(x)[1].lower()):
+                    _sr = _cartridge_series(_h, df_use[df_use['Hospital Name'] == _h], history, _rep_ym)
+                    if _sr['cur'] or any(_sr['hist'].values()):
+                        _sites.append((_folder_prefix(_h)[1], _sr))
+                _adir = os.path.join(output_dir, _pre)
+                if _hrows or _sites:
                     os.makedirs(_adir, exist_ok=True)
+                if _hrows:
                     _write_area_summary(_pre, _hrows, os.path.join(
                         _adir, f"i-STAT_{safe_fn(_pre)}_Area_Summary_{report_month.replace(' ', '')}.docx"),
-                        report_month)
+                        report_month, cart=_cartridge_merge([sr for _, sr in _sites]) if _sites else None)
+                    progress["reports"] += 1
+                if _sites:
+                    _write_stock_report(_pre, _sites, os.path.join(
+                        _adir, f"i-STAT_{safe_fn(_pre)}_Cartridge_Stock_{report_month.replace(' ', '')}.docx"), report_month)
                     progress["reports"] += 1
             except Exception:
                 import traceback

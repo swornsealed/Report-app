@@ -2,69 +2,69 @@
   "timeline": [
     {
       "name": "portal",
-      "t": 3.43,
+      "t": 2.62,
       "caption": "Launch: the selection page, both engines ready",
-      "out_t": 3.43
+      "out_t": 2.62
     },
     {
       "name": "about",
-      "t": 7.12,
+      "t": 6.37,
       "caption": "About this tool",
-      "out_t": 7.12
+      "out_t": 6.37
     },
     {
       "name": "unlock",
-      "t": 13.29,
+      "t": 12.28,
       "caption": "The history is encrypted: the password comes first",
-      "out_t": 13.29
+      "out_t": 12.28
     },
     {
       "name": "upload",
-      "t": 14.79,
+      "t": 13.79,
       "caption": "Drop the monthly export",
-      "out_t": 14.79
+      "out_t": 13.79
     },
     {
       "name": "dropped",
-      "t": 17.33,
+      "t": 16.36,
       "caption": "The period fills in from the filename: August 2026",
-      "out_t": 17.33
+      "out_t": 16.36
     },
     {
       "name": "hospitals",
-      "t": 25.29,
+      "t": 26.71,
       "caption": "Every hospital in the export, grouped by HHS",
-      "out_t": 25.29
+      "out_t": 26.71
     },
     {
       "name": "selected",
-      "t": 31.08,
+      "t": 32.52,
       "caption": "Select All",
-      "out_t": 31.08
+      "out_t": 32.52
     },
     {
       "name": "generate",
-      "t": 34.11,
+      "t": 35.57,
       "caption": "Generate: every hospital in turn, reports counted as they are written",
-      "out_t": 34.11
+      "out_t": 35.57
     },
     {
       "name": "finishing",
-      "t": 567.75,
+      "t": 689.13,
       "caption": "Last hospitals and the area summaries",
-      "out_t": 54.11
+      "out_t": 55.57
     },
     {
       "name": "results",
-      "t": 569.28,
-      "caption": "Done: 474 reports for 159 hospitals, 163 dormant analysers listed",
-      "out_t": 55.64
+      "t": 690.67,
+      "caption": "Done: 490 reports for 159 hospitals, 163 dormant analysers listed",
+      "out_t": 57.11
     },
     {
       "name": "end",
-      "t": 574.46,
+      "t": 695.9,
       "caption": "",
-      "out_t": 60.82
+      "out_t": 62.34
     }
   ],
   "progress": {
@@ -75,11 +75,11 @@
     "dormant_file": "Dormant_iSTATs_August2026.docx",
     "errors": [],
     "output": "C:\\Users\\addic\\Claude\\Projects\\Build better reports\\Landing_page\\work\\sandbox\\Reports\\iSTAT\\2026-08 August",
-    "reports": 474,
+    "reports": 490,
     "total": 159
   },
   "month": "August 2026",
-  "speedup": 29.5,
-  "fast_from": 36.11,
-  "fast_to_out": 54.11
+  "speedup": 36.2,
+  "fast_from": 37.57,
+  "fast_to_out": 55.57
 }

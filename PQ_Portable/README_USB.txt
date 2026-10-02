@@ -9,7 +9,9 @@ WHAT THIS IS
     - ABL (Blood Gas)          http://localhost:5758
   Conceived, designed and built by Craig MacKenzie, Chemistry
   Department, Townsville Group Laboratory, for Pathology Queensland
-  Point of Care Testing. See 'About' on the selection page.
+  Point of Care Testing. Amendments and oversight by Damian Juskiw,
+  Supervising Scientist, Chemical Pathology, Townsville.
+  See 'About' on the selection page.
 
 TO USE
   1. Plug the USB stick into a Windows PC.
