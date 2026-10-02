@@ -52,3 +52,6 @@ PQ_Portable/ABL_Reports_*/
 
 # Claude Code local settings
 .claude/
+
+# raw demo recording (cut into run.mp4)
+Landing_page/assets/run/raw.webm
