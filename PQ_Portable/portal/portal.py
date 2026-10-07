@@ -20,7 +20,10 @@ PORT    = 5750
 # licence file from the PoC lead and lists the licences on the drive; both
 # engines check the same files and lock themselves otherwise.
 sys.path.insert(0, ROOT)
-import pq_licence as lic
+try:
+    import bundle_licence as lic
+except ImportError:            # a drive deployed before the module was renamed
+    import pq_licence as lic
 lic.record_launch('portal')
 
 def _same_origin(req):

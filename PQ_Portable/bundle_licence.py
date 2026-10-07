@@ -1,7 +1,7 @@
-"""pq_licence.py — licence check for the PQ Operator Report Generator bundle.
+"""bundle_licence.py — licence check for the PQ Operator Report Generator bundle.
 
 Central control. A PC runs the bundle only under a LICENCE FILE (*.lic at the
-drive root) issued by the PoC lead's offline keygen (PQ_Licensing\\pq_keygen.py,
+drive root) issued by the PoC lead's offline keygen (PQ_Licensing\\bundle_keygen.py,
 never on the drive). The drive itself cannot authorise anything: it carries
 only the PUBLIC key below, so licence files cannot be forged from the drive.
 

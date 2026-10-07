@@ -1,20 +1,20 @@
-"""pq_keygen.py — PRIVATE licence issuer for the PQ Operator Report Generator.
+"""bundle_keygen.py — PRIVATE licence issuer for the PQ Operator Report Generator.
 
 Keep this folder OFF the drive and OUT of git. private_key.hex is the only
 thing that can sign a licence; the bundle carries just the public key.
 
-  python pq_keygen.py init                       create the key pair (once)
-  python pq_keygen.py id                         print THIS PC's machine ID
-  python pq_keygen.py issue --site "Townsville PoC" ^
+  python bundle_keygen.py init                       create the key pair (once)
+  python bundle_keygen.py id                         print THIS PC's machine ID
+  python bundle_keygen.py issue --site "Townsville PoC" ^
         --machine 2861-7BE8-C880:"PoC office PC" [--machine ...] ^
         [--months 12] [--seats 3] [--max-version 2026.09.27] [--note "QIS review 2026"]
                                                  write issued\\<id>.lic + ledger row
-  python pq_keygen.py show path\\to\\file.lic     verify and print a licence
-  python pq_keygen.py list                       print the ledger of issued licences
+  python bundle_keygen.py show path\\to\\file.lic     verify and print a licence
+  python bundle_keygen.py list                       print the ledger of issued licences
 
 A licence is JSON {"payload": {...}, "sig": <hex Ed25519 signature>} over the
 canonical payload. Copy the .lic to the drive root (or install it from the
-selection page); the bundle verifies it against PUBLIC_KEY_HEX in pq_licence.py.
+selection page); the bundle verifies it against PUBLIC_KEY_HEX in bundle_licence.py.
 """
 import os
 import re
@@ -33,8 +33,8 @@ BUNDLE    = os.path.normpath(os.path.join(HERE, '..', 'PQ_Portable'))
 
 
 def _mod():
-    p = os.path.join(BUNDLE, 'pq_licence.py')
-    spec = importlib.util.spec_from_file_location('pq_licence', p)
+    p = os.path.join(BUNDLE, 'bundle_licence.py')
+    spec = importlib.util.spec_from_file_location('bundle_licence', p)
     m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
     return m
 
@@ -42,7 +42,7 @@ def _mod():
 def _priv():
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
     if not os.path.exists(PRIV_PATH):
-        sys.exit('No private key — run: python pq_keygen.py init')
+        sys.exit('No private key — run: python bundle_keygen.py init')
     return Ed25519PrivateKey.from_private_bytes(bytes.fromhex(open(PRIV_PATH).read().strip()))
 
 
@@ -60,7 +60,7 @@ def cmd_init(_):
         fh.write(raw.hex() + '\n')
     print('private key written to', PRIV_PATH)
     print('PUBLIC_KEY_HEX =', repr(pub.hex()))
-    print('paste that value into PQ_Portable\\pq_licence.py and redeploy the bundle.')
+    print('paste that value into PQ_Portable\\bundle_licence.py and redeploy the bundle.')
 
 
 def cmd_id(_):

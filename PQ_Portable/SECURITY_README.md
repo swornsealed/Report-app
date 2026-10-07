@@ -88,7 +88,7 @@ is copied to, and the number of copies in circulation must be controlled central
 launch checks for a **licence file** covering the PC it is running on:
 
 - **Issued centrally, never on the drive.** Licences are created only by the PoC lead's offline
-  keygen (`PQ_Licensing\pq_keygen.py`, kept off the drive and out of the repository), which
+  keygen (`PQ_Licensing\bundle_keygen.py`, kept off the drive and out of the repository), which
   holds the Ed25519 private key. The bundle carries only the public key, so a licence cannot
   be forged from the drive. The keygen's ledger (`issued_licences.csv`) is the central register
   of every copy licensed.
@@ -150,7 +150,7 @@ degrading its security.
 ## 9. Verifying these claims
 
 1. **Code is inspectable:** `iSTAT_App\app.py`, `ABL_App\app.py`, `portal\portal.py`,
-   `pq_licence.py` and both `netguard.py` files are plain Python source. The `python\` folder is the unmodified
+   `bundle_licence.py` and both `netguard.py` files are plain Python source. The `python\` folder is the unmodified
    python.org embeddable distribution plus PyPI wheels.
 2. **Offline test:** air-gap a machine, run end-to-end, review the network audit logs.
 3. **Drive encryption test:** insert the drive on any machine — Windows demands the

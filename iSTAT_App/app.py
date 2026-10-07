@@ -43,18 +43,20 @@ APP_COMPONENT = 'istat'
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  LICENCE GATE — the bundle runs only under a licence file issued by the PoC
-#  lead's offline keygen (pq_licence.py at the bundle root holds the public
+#  lead's offline keygen (bundle_licence.py at the bundle root holds the public
 #  key). Without the module, or without a valid licence covering this machine,
 #  every request is answered with a lock page.
 # ═══════════════════════════════════════════════════════════════════════════════
 def _load_licence():
     import importlib.util
     _here = os.path.dirname(os.path.abspath(__file__))
-    for cand in (os.path.join(_here, '..'), os.path.join(_here, '..', 'PQ_Portable')):
-        path = os.path.join(cand, 'pq_licence.py')
+    # bundle_licence.py; pq_licence.py is its old name, still found on drives deployed before
+    for cand, name in [(c, n) for c in (os.path.join(_here, '..'), os.path.join(_here, '..', 'PQ_Portable'))
+                       for n in ('bundle_licence.py', 'pq_licence.py')]:
+        path = os.path.join(cand, name)
         if os.path.exists(path):
             try:
-                spec = importlib.util.spec_from_file_location('pq_licence', path)
+                spec = importlib.util.spec_from_file_location('bundle_licence', path)
                 mod  = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(mod)
                 return mod

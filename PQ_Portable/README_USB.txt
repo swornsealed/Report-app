@@ -45,7 +45,7 @@ FOLDER LAYOUT (keep together)
   iSTAT_App\             i-STAT report engine
   ABL_App\               ABL report engine
   python\                private Python + packages (do not modify)
-  pq_licence.py          licence check (used by all three)
+  bundle_licence.py          licence check (used by all three)
   VERSION                bundle version (licences name the newest
                          version they cover)
 
