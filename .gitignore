@@ -6,12 +6,12 @@
 !/README.md
 !/iSTAT_App/
 !/ABL_App/
-!/PQ_Portable/
+!/Bundle/
 !/PQ_Report_Generator_User_Guide.pptx
 !/PQ_Report_Generator_Security_Briefing.pptx
 !/PQ_Report_Generator_Overview_for_Managers_iSTAT.pptx
 !/PQ_Report_Generator_Overview_for_Managers_ABL.pptx
-!/PQ_Licensing/
+!/Licensing/
 !/Landing_page/
 Landing_page/work/
 
@@ -28,21 +28,21 @@ ABL_App/picu_operator_list.xlsx
 
 # Licensing: the private key and issued licences never go in the repo;
 # per-drive licence state is not source either
-PQ_Licensing/private_key.hex
-PQ_Licensing/issued/
-PQ_Licensing/issued_licences.csv
+Licensing/private_key.hex
+Licensing/issued/
+Licensing/issued_licences.csv
 *.lic
 licence_seen.json
 licence_seen.json.tmp
 
 # Portable bundle: only the portal, launcher and docs are source.
 # The app copies are deployed from iSTAT_App / ABL_App; python/ is the runtime.
-PQ_Portable/python/
-PQ_Portable/iSTAT_App/
-PQ_Portable/ABL_App/
-PQ_Portable/Reports/
-PQ_Portable/Reports_*/
-PQ_Portable/ABL_Reports_*/
+Bundle/python/
+Bundle/iSTAT_App/
+Bundle/ABL_App/
+Bundle/Reports/
+Bundle/Reports_*/
+Bundle/ABL_Reports_*/
 
 # Never any spreadsheets or generated Word reports
 *.xlsx

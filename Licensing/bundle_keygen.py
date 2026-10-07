@@ -26,10 +26,21 @@ import datetime as _dt
 import importlib.util
 
 HERE      = os.path.dirname(os.path.abspath(__file__))
-PRIV_PATH = os.path.join(HERE, 'private_key.hex')
-ISSUED    = os.path.join(HERE, 'issued')
-LEDGER    = os.path.join(HERE, 'issued_licences.csv')
-BUNDLE    = os.path.normpath(os.path.join(HERE, '..', 'PQ_Portable'))
+# This folder was PQ_Licensing. The private key, issued licences and ledger are not in git, so
+# a checkout made before the rename keeps them in PQ_Licensing: they are used from there until
+# moved, and init never makes a second key pair while the first one exists in either place.
+_OLD      = os.path.normpath(os.path.join(HERE, '..', 'PQ_Licensing'))
+KEYDIR    = (_OLD if not os.path.exists(os.path.join(HERE, 'private_key.hex'))
+             and os.path.exists(os.path.join(_OLD, 'private_key.hex')) else HERE)
+PRIV_PATH = os.path.join(KEYDIR, 'private_key.hex')
+ISSUED    = os.path.join(KEYDIR, 'issued')
+LEDGER    = os.path.join(KEYDIR, 'issued_licences.csv')
+BUNDLE    = next((b for b in (os.path.normpath(os.path.join(HERE, '..', n)) for n in ('Bundle', 'PQ_Portable'))
+                  if os.path.exists(os.path.join(b, 'bundle_licence.py'))),
+                 os.path.normpath(os.path.join(HERE, '..', 'Bundle')))
+if KEYDIR == _OLD:
+    print(f'Using the private key, issued licences and ledger in {_OLD} (the folder\'s old name). '
+          f'Move them into {HERE} when convenient.')
 
 
 def _mod():
@@ -60,7 +71,7 @@ def cmd_init(_):
         fh.write(raw.hex() + '\n')
     print('private key written to', PRIV_PATH)
     print('PUBLIC_KEY_HEX =', repr(pub.hex()))
-    print('paste that value into PQ_Portable\\bundle_licence.py and redeploy the bundle.')
+    print('paste that value into Bundle\\bundle_licence.py and redeploy the bundle.')
 
 
 def cmd_id(_):

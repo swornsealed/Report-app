@@ -42,8 +42,10 @@ APP_COMPONENT = 'abl'
 def _load_licence():
     import importlib.util
     _here = os.path.dirname(os.path.abspath(__file__))
-    # bundle_licence.py; pq_licence.py is its old name, still found on drives deployed before
-    for cand, name in [(c, n) for c in (os.path.join(_here, '..'), os.path.join(_here, '..', 'PQ_Portable'))
+    # bundle_licence.py in Bundle (PQ_Portable and pq_licence.py are the old names, still
+    # found in a checkout or on a drive from before the rename)
+    for cand, name in [(c, n) for c in (os.path.join(_here, '..'), os.path.join(_here, '..', 'Bundle'),
+                                                 os.path.join(_here, '..', 'PQ_Portable'))
                        for n in ('bundle_licence.py', 'pq_licence.py')]:
         path = os.path.join(cand, name)
         if os.path.exists(path):

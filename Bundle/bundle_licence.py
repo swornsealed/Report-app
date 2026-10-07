@@ -1,7 +1,7 @@
 """bundle_licence.py — licence check for the PQ Operator Report Generator bundle.
 
 Central control. A PC runs the bundle only under a LICENCE FILE (*.lic at the
-drive root) issued by the PoC lead's offline keygen (PQ_Licensing\\bundle_keygen.py,
+drive root) issued by the PoC lead's offline keygen (Licensing\\bundle_keygen.py,
 never on the drive). The drive itself cannot authorise anything: it carries
 only the PUBLIC key below, so licence files cannot be forged from the drive.
 
@@ -52,7 +52,7 @@ SEEN         = os.path.join(ROOT, 'licence_seen.json')
 AUDIT        = os.path.join(ROOT, 'licence_audit.log')
 
 # The PoC lead's Ed25519 PUBLIC key (hex). The private half lives only in
-# PQ_Licensing\private_key.hex on the issuing PC. Replace both together.
+# Licensing\private_key.hex on the issuing PC. Replace both together.
 PUBLIC_KEY_HEX = 'c81c4a8c04a76f1e1205f90cad10f69cde1ae9b377bf5447e97440e9ba97e07c'
 
 NOTICE_DAYS = 30
